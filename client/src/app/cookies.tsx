@@ -15,7 +15,7 @@ const Cookies = () => {
   return (
     <div
       className={cn(
-        "fixed text-sm text-neutral-700 transition duration-500 dark:text-neutral-300 w-auto h-12 bottom-20 md:bottom-2 left-2 backdrop-blur-sm bg-neutral-300/50 dark:bg-neutral-900/50 rounded-2xl flex items-center justify-center p-1",
+        "fixed z-100 text-sm text-neutral-700 transition duration-500 dark:text-neutral-300 w-auto h-12 bottom-20 md:bottom-2 left-2 backdrop-blur-sm bg-neutral-300/50 dark:bg-neutral-900/50 rounded-2xl flex items-center justify-center p-1",
         accepted ? "transform translate-y-24" : "animate-fadeIn"
       )}
     >

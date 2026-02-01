@@ -18,7 +18,7 @@ export function MainNav() {
             priority
             width={100}
             height={100}
-            alt="Nepal Heritage Handicraft Logo"
+            alt="Alphasuits Logo"
           />
         </span>
       </Link>

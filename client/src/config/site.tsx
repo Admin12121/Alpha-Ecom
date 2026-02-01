@@ -2,37 +2,20 @@ import { Metadata } from "next";
 import { FooterItem } from "@/types/type";
 
 export const siteConfig = {
-  title: "Nepal Heritage Handicraft",
-  name: "Heritage Craft",
-  shortName: "NHH",
-  url: "https://ecom.biki.com.np",
-  ogImage: "https://ecom.biki.com.np/og.jpg",
+  title: "Alphasuits",
+  name: "Alphasuits",
+  shortName: "Alphasuits",
+  url: "https://alphasuits.com.np",
+  ogImage: "https://alphasuits.com.np/og.jpg",
   description:
-    "Authentic Nepalese art, sculptures, and handicrafts for cultural enthusiasts.",
+    "Nepali clothing brand. Premium suits, coats, and pants. For every type of SHIRTING AND SUITING.",
   links: {
-    instagram: "https://www.instagram.com/nepalheritagehandicraft/",
+    instagram: "https://www.instagram.com/alphasuits0/",
+    facebook: "https://www.facebook.com/alphasuits0",
+    tiktok: "https://www.tiktok.com/@alphasuits0",
+    mail: "mailto:info@alphasuits.com.np",
   },
   footerNav: [
-    {
-      title: "Product",
-      items: [
-        {
-          title: "Status",
-          href: "https://onestopshop.jackblatch.com",
-          external: true,
-        },
-        {
-          title: "Stupas",
-          href: "https://acme-corp.jumr.dev",
-          external: true,
-        },
-        {
-          title: "Paintings",
-          href: "https://craft.mxkaske.dev",
-          external: true,
-        },
-      ],
-    },
     {
       title: "Support",
       items: [
@@ -58,12 +41,17 @@ export const siteConfig = {
       items: [
         {
           title: "Instagram",
-          href: "https://www.instagram.com/nepalheritagehandicraft/",
+          href: "https://www.instagram.com/alphasuits0/",
           external: true,
         },
         {
           title: "Facebook",
-          href: "https://www.facebook.com/profile.php?id=61556557202990%",
+          href: "https://www.facebook.com/alphasuits0",
+          external: true,
+        },
+        {
+          title: "TikTok",
+          href: "https://www.tiktok.com/@alphasuits0",
           external: true,
         },
       ],
@@ -96,14 +84,14 @@ export function constructMetadata({
   [key: string]: Metadata[keyof Metadata];
 }): Metadata {
   const baseKeywords = [
-    "Nepalese handicrafts",
-    "Traditional art",
-    "Cultural sculptures",
-    "Nepal art store",
-    "Handmade crafts",
-    "Next.js",
-    "Tailwind CSS",
-    "E-commerce platform",
+    "Alphasuits",
+    "Nepali clothing brand",
+    "Premium suits",
+    "Coats",
+    "Pants",
+    "Shirting and Suiting",
+    "Tailored suits Nepal",
+    "Menswear",
   ];
 
   const baseUrl = process.env.NEXTAUTH_URL || siteConfig.url;
@@ -120,7 +108,7 @@ export function constructMetadata({
           url: image,
           width: 1200,
           height: 630,
-          alt: `${title} - Authentic Nepalese Handicrafts`,
+          alt: `${title} - Premium Suits and Clothing`,
         },
       ],
     },
@@ -129,7 +117,7 @@ export function constructMetadata({
       title,
       description,
       images: [image],
-      creator: "@vicky_tajpuriya",
+      creator: "@alphasuits0",
     },
     icons: {
       icon: "/favicon.ico",
@@ -138,11 +126,11 @@ export function constructMetadata({
     metadataBase: new URL(baseUrl),
     authors: [
       {
-        name: "vikcy",
-        url: "https://twitter.com/vicky_tajpuriya",
+        name: "Admin12121",
+        url: "https://biki.com.np",
       },
     ],
-    creator: "vicky",
+    creator: "Admin12121",
     robots: "index, follow",
     ...props,
   };

@@ -19,18 +19,25 @@ import {
   Table,
   TableHeader,
   TableBody,
-  TableColumn,
   TableRow,
   TableCell,
-  SortDescriptor,
-  Selection,
-} from "@heroui/table";
+  TableHead,
+} from "@/components/ui/table";
 import {
   Card,
   CardContent,
   CardFooter,
   CardHeader,
 } from "@/components/ui/card";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+  PaginationEllipsis,
+} from "@/components/ui/pagination";
 
 import {
   LoaderCircle,
@@ -39,10 +46,12 @@ import {
   ChevronDown,
   RotateCcw as IoReload,
   CircleAlertIcon,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
 } from "lucide-react";
 
 import { User } from "./user";
-import { Pagination } from "@heroui/pagination";
 
 import { labels } from "./data";
 
@@ -50,10 +59,12 @@ import { Spinner } from "@/components/ui/spinner";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge as Chip } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 
 import { PlusCircledIcon } from "@radix-ui/react-icons";
 import { DotsHorizontalIcon } from "@radix-ui/react-icons";
 import { Label } from "@/components/ui/label";
+import { cn } from "@/lib/utils";
 
 const statusOptions = [
   { name: "Published", uid: "i_published" },
@@ -86,6 +97,13 @@ interface ApiResponse {
   count: number;
   page_size: number;
   results: Users[];
+}
+
+type SortDirection = "ascending" | "descending" | null;
+
+interface SortDescriptor {
+  column: string;
+  direction: SortDirection;
 }
 
 const columns = [
@@ -137,13 +155,13 @@ export default function UserTable({
   const router = useRouter();
   const [filterValue, setFilterValue] = React.useState("");
   const [searchValue, setsearchValue] = React.useState("");
-  const [selectedKeys, setSelectedKeys] = React.useState<Selection>(
+  const [selectedKeys, setSelectedKeys] = React.useState<Set<number>>(
     new Set([])
   );
-  const [visibleColumns, setVisibleColumns] = React.useState<Selection>(
+  const [visibleColumns, setVisibleColumns] = React.useState<Set<string>>(
     new Set(INITIAL_VISIBLE_COLUMNS)
   );
-  const [statusFilter, setStatusFilter] = React.useState<Selection>("all");
+  const [statusFilter, setStatusFilter] = React.useState<string>("all");
   const [rowsPerPage, setRowsPerPage] = React.useState(10);
   const [sortDescriptor, setSortDescriptor] = React.useState<SortDescriptor>({
     column: "id",
@@ -166,6 +184,39 @@ export default function UserTable({
     });
   };
 
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedKeys(new Set(users.map((u) => u.id)));
+    } else {
+      setSelectedKeys(new Set());
+    }
+  };
+
+  const handleSelectRow = (id: number, checked: boolean) => {
+    setSelectedKeys((prev) => {
+      const newSet = new Set(prev);
+      if (checked) {
+        newSet.add(id);
+      } else {
+        newSet.delete(id);
+      }
+      return newSet;
+    });
+  };
+
+  const handleSort = (column: string) => {
+    setSortDescriptor((prev) => {
+      if (prev.column === column) {
+        return {
+          column,
+          direction:
+            prev.direction === "ascending" ? "descending" : "ascending",
+        };
+      }
+      return { column, direction: "ascending" };
+    });
+  };
+
   useEffect(() => {
     if (data) {
       setUsers(data.results);
@@ -176,26 +227,17 @@ export default function UserTable({
   const hasSearchFilter = Boolean(filterValue);
 
   const headerColumns = React.useMemo(() => {
-    if (visibleColumns === "all") return columns;
-    return columns.filter((column) =>
-      Array.from(visibleColumns).includes(column.uid)
-    );
+    return columns.filter((column) => visibleColumns.has(column.uid));
   }, [visibleColumns]);
 
   const filteredItems = React.useMemo(() => {
     const filteredUsers = [...users];
     if (statusFilter !== "all") {
-      const selectedStatuses = Array.from(statusFilter);
-
       const excludedStatuses = statusOptions
         .map((option) => option.uid)
-        .filter((status) => !selectedStatuses.includes(status));
+        .filter((status) => status !== statusFilter);
 
-      const oppositeStatuses = excludedStatuses.map((status) => {
-        return status;
-      });
-
-      SetExcludeBy(oppositeStatuses);
+      SetExcludeBy(excludedStatuses);
     }
 
     return filteredUsers;
@@ -222,7 +264,6 @@ export default function UserTable({
               avatarProps={{
                 src: users?.profile as string,
                 name: `${users.username.slice(0, 1)}`,
-                // icon: `${(<AvatarIcon />)}`,
                 classNames: {
                   base: "bg-gradient-to-br from-[#FFB457] to-[#FF705B] cursor-pointer",
                   icon: "text-black/80",
@@ -329,6 +370,42 @@ export default function UserTable({
     }
   };
 
+  // Generate page numbers for pagination
+  const getPageNumbers = () => {
+    const pageNumbers: (number | "ellipsis")[] = [];
+    const maxVisiblePages = 5;
+
+    if (pages <= maxVisiblePages) {
+      for (let i = 1; i <= pages; i++) {
+        pageNumbers.push(i);
+      }
+    } else {
+      if (page <= 3) {
+        for (let i = 1; i <= 4; i++) {
+          pageNumbers.push(i);
+        }
+        pageNumbers.push("ellipsis");
+        pageNumbers.push(pages);
+      } else if (page >= pages - 2) {
+        pageNumbers.push(1);
+        pageNumbers.push("ellipsis");
+        for (let i = pages - 3; i <= pages; i++) {
+          pageNumbers.push(i);
+        }
+      } else {
+        pageNumbers.push(1);
+        pageNumbers.push("ellipsis");
+        for (let i = page - 1; i <= page + 1; i++) {
+          pageNumbers.push(i);
+        }
+        pageNumbers.push("ellipsis");
+        pageNumbers.push(pages);
+      }
+    }
+
+    return pageNumbers;
+  };
+
   const topContent = React.useMemo(() => {
     return (
       <div className="flex flex-col gap-4">
@@ -395,10 +472,7 @@ export default function UserTable({
                   <DropdownMenuCheckboxItem
                     key={column.uid}
                     className="cursor-pointer"
-                    checked={
-                      visibleColumns === "all" ||
-                      (visibleColumns as Set<string>).has(column.uid)
-                    }
+                    checked={visibleColumns.has(column.uid)}
                     onCheckedChange={() => handleColumnToggle(column.uid)}
                   >
                     {capitalize(column.name)}
@@ -452,23 +526,79 @@ export default function UserTable({
     onRowsPerPageChange,
     users.length,
     hasSearchFilter,
+    searchValue,
+    searchLoading,
+    totalUsers,
+    router,
+    refetch,
   ]);
 
   const bottomContent = React.useMemo(() => {
+    const pageNumbers = getPageNumbers();
+
     return (
       <div className="py-2 px-2 flex justify-between items-center">
-        <Pagination
-          showControls
-          classNames={{ cursor: "bg-foreground text-background" }}
-          color="default"
-          isDisabled={hasSearchFilter}
-          page={page}
-          total={pages}
-          variant="light"
-          onChange={setPage}
-        />
+        <Pagination>
+          <PaginationContent>
+            <PaginationItem>
+              <PaginationPrevious
+                href="#"
+                onClick={(e) => {
+                  e.preventDefault();
+                  if (page > 1 && !hasSearchFilter) setPage(page - 1);
+                }}
+                className={cn(
+                  page <= 1 || hasSearchFilter
+                    ? "pointer-events-none opacity-50"
+                    : "cursor-pointer"
+                )}
+              />
+            </PaginationItem>
+
+            {pageNumbers.map((pageNum, index) =>
+              pageNum === "ellipsis" ? (
+                <PaginationItem key={`ellipsis-${index}`}>
+                  <PaginationEllipsis />
+                </PaginationItem>
+              ) : (
+                <PaginationItem key={pageNum}>
+                  <PaginationLink
+                    href="#"
+                    isActive={page === pageNum}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      if (!hasSearchFilter) setPage(pageNum);
+                    }}
+                    className={cn(
+                      hasSearchFilter
+                        ? "pointer-events-none opacity-50"
+                        : "cursor-pointer"
+                    )}
+                  >
+                    {pageNum}
+                  </PaginationLink>
+                </PaginationItem>
+              )
+            )}
+
+            <PaginationItem>
+              <PaginationNext
+                href="#"
+                onClick={(e) => {
+                  e.preventDefault();
+                  if (page < pages && !hasSearchFilter) setPage(page + 1);
+                }}
+                className={cn(
+                  page >= pages || hasSearchFilter
+                    ? "pointer-events-none opacity-50"
+                    : "cursor-pointer"
+                )}
+              />
+            </PaginationItem>
+          </PaginationContent>
+        </Pagination>
         <span className="text-small text-default-400">
-          {selectedKeys === "all"
+          {selectedKeys.size === users.length && users.length > 0
             ? "All items selected"
             : `${selectedKeys.size} of ${filteredItems.length} selected`}
         </span>
@@ -481,78 +611,109 @@ export default function UserTable({
     pages,
     hasSearchFilter,
     setPage,
+    users.length,
   ]);
-
-  const classNames = React.useMemo(
-    () => ({
-      wrapper: ["max-h-[382px]", "max-w-3xl"],
-      th: ["bg-transparent", "text-default-500", "border-b", "border-divider"],
-      td: [
-        "group-data-[first=true]:first:before:rounded-none",
-        "group-data-[first=true]:last:before:rounded-none",
-        "group-data-[middle=true]:before:rounded-none",
-        "group-data-[last=true]:first:before:rounded-none",
-        "group-data-[last=true]:last:before:rounded-none",
-      ],
-    }),
-    []
-  );
 
   return (
     <>
-      <Table
-        isCompact
-        removeWrapper
-        aria-label="Example table with custom cells, pagination and sorting"
-        bottomContent={bottomContent}
-        bottomContentPlacement="outside"
-        checkboxesProps={{
-          classNames: {
-            wrapper:
-              "after:bg-foreground after:text-background text-background",
-          },
-        }}
-        classNames={classNames}
-        selectedKeys={selectedKeys}
-        selectionMode="multiple"
-        sortDescriptor={sortDescriptor}
-        topContent={topContent}
-        topContentPlacement="outside"
-        onSelectionChange={setSelectedKeys}
-        onSortChange={setSortDescriptor}
-      >
-        <TableHeader columns={headerColumns}>
-          {(column: any) => (
-            <TableColumn
-              key={column.uid}
-              align={column.uid === "actions" ? "center" : "start"}
-              allowsSorting={column.sortable}
-            >
-              {column.name}
-            </TableColumn>
-          )}
-        </TableHeader>
-        <TableBody
-          emptyContent={"No users found"}
-          items={sortedItems}
-          isLoading={isLoading}
-          loadingContent={
-            <span className="h-[50vh] flex items-center justify-center">
-              <Spinner color="default" />
-            </span>
-          }
-        >
-          {(item: Users) => (
-            <TableRow key={item.id}>
-              {(columnKey: any) => (
-                <TableCell>
-                  {renderCell(item, columnKey) as React.ReactNode}
-                </TableCell>
+      <div className="space-y-4">
+        {topContent}
+
+        <div className="rounded-md border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-[40px]">
+                  <Checkbox
+                    checked={
+                      users.length > 0 && selectedKeys.size === users.length
+                    }
+                    onCheckedChange={handleSelectAll}
+                    aria-label="Select all"
+                    className="translate-y-[2px]"
+                  />
+                </TableHead>
+                {headerColumns.map((column) => (
+                  <TableHead
+                    key={column.uid}
+                    className={cn(
+                      column.uid === "actions" ? "text-center" : "text-left",
+                      column.sortable ? "cursor-pointer select-none" : ""
+                    )}
+                    onClick={() => column.sortable && handleSort(column.uid)}
+                  >
+                    <div className="flex items-center gap-1">
+                      {column.name}
+                      {column.sortable && (
+                        <span className="ml-1">
+                          {sortDescriptor.column === column.uid ? (
+                            sortDescriptor.direction === "ascending" ? (
+                              <ArrowUp className="h-4 w-4" />
+                            ) : (
+                              <ArrowDown className="h-4 w-4" />
+                            )
+                          ) : (
+                            <ArrowUpDown className="h-4 w-4 opacity-50" />
+                          )}
+                        </span>
+                      )}
+                    </div>
+                  </TableHead>
+                ))}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {isLoading ? (
+                <TableRow>
+                  <TableCell
+                    colSpan={headerColumns.length + 1}
+                    className="h-[50vh]"
+                  >
+                    <div className="flex items-center justify-center">
+                      <Spinner color="default" />
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ) : sortedItems.length === 0 ? (
+                <TableRow>
+                  <TableCell
+                    colSpan={headerColumns.length + 1}
+                    className="h-24 text-center"
+                  >
+                    No users found
+                  </TableCell>
+                </TableRow>
+              ) : (
+                sortedItems.map((item) => (
+                  <TableRow
+                    key={item.id}
+                    data-state={selectedKeys.has(item.id) ? "selected" : ""}
+                  >
+                    <TableCell>
+                      <Checkbox
+                        checked={selectedKeys.has(item.id)}
+                        onCheckedChange={(checked) =>
+                          handleSelectRow(item.id, checked as boolean)
+                        }
+                        aria-label={`Select row ${item.id}`}
+                        className="translate-y-[2px]"
+                      />
+                    </TableCell>
+                    {headerColumns.map((column) => (
+                      <TableCell key={column.uid}>
+                        {renderCell(item, column.uid) as React.ReactNode}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))
               )}
-            </TableRow>
-          )}
-        </TableBody>
-      </Table>
+            </TableBody>
+          </Table>
+        </div>
+
+        {bottomContent}
+      </div>
+
       {DeleteModalId && (
         <DeleteModal
           DeleteModalId={DeleteModalId}
@@ -622,4 +783,3 @@ const DeleteModal = ({
     </div>
   );
 };
-

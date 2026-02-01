@@ -118,7 +118,7 @@ const LandingPage = ({
           )}
         >
           <LogoAnimation className="h-[85px] font-normal flex">
-            Nepal Heritage Handicraft
+            Alphasuits
             <AnimatedNumber
               className="w-36 flex justify-end"
               springOptions={{ bounce: 0, duration: 1000 }}

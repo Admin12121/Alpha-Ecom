@@ -142,7 +142,7 @@ const Sidebar = ({ layout, collapsed, navCollapsedSize = 4, children }: SidebarP
               className={cn(
                 "p-2 max-md:hidden h-[100dvh] min-w-[170px]",
                 isCollapsed &&
-                  "min-w-[68px] transition-all duration-300 ease-in-out"
+                "min-w-[68px] transition-all duration-300 ease-in-out"
               )}
             >
               {sidebarNav.nav}
@@ -286,7 +286,7 @@ const SidebarContent = ({
                           }),
                           "h-9 w-9",
                           determineVariant(link.href) === "default" &&
-                            "dark:bg-muted dark:text-muted-foreground dark:hover:bg-muted dark:hover:text-white",
+                          "dark:bg-muted dark:text-muted-foreground dark:hover:bg-muted dark:hover:text-white",
                           link.className
                         )}
                       >
@@ -317,7 +317,7 @@ const SidebarContent = ({
                                 }),
                                 "flex items-center text-xs justify-start w-full hover:dark:!bg-neutral-900",
                                 subItem.variant === "default" &&
-                                  "dark:bg-muted dark:text-white dark:hover:bg-muted dark:hover:text-white",
+                                "dark:bg-muted dark:text-white dark:hover:bg-muted dark:hover:text-white",
                                 subItem.className
                               )}
                             >
@@ -393,7 +393,7 @@ const SidebarContent = ({
                                 size: "sm",
                               }),
                               determineVariant(link.href) === "default" &&
-                                "dark:bg-muted dark:text-white dark:hover:bg-muted dark:hover:text-white",
+                              "dark:bg-muted dark:text-white dark:hover:bg-muted dark:hover:text-white",
                               "justify-start w-full",
                               link.className
                             )}
@@ -417,7 +417,7 @@ const SidebarContent = ({
                                       }),
                                       "flex items-center text-xs justify-start",
                                       subItem.variant === "default" &&
-                                        "dark:bg-muted dark:text-white dark:hover:bg-muted dark:hover:text-white",
+                                      "dark:bg-muted dark:text-white dark:hover:bg-muted dark:hover:text-white",
                                       subItem.className
                                     )}
                                   >
@@ -478,7 +478,7 @@ const SidebarContent = ({
                           size: "sm",
                         }),
                         determineVariant(link.href) === "default" &&
-                          "dark:bg-muted dark:text-white dark:hover:bg-muted dark:hover:text-white",
+                        "dark:bg-muted dark:text-white dark:hover:bg-muted dark:hover:text-white",
                         "justify-start w-full",
                         link.className
                       )}
@@ -490,7 +490,7 @@ const SidebarContent = ({
                           className={cn(
                             "ml-auto",
                             determineVariant(link.href) === "default" &&
-                              "text-background dark:text-white"
+                            "text-background dark:text-white"
                           )}
                         >
                           {link.label}
@@ -683,7 +683,7 @@ const SidebarMenuAction = React.forwardRef<
         "peer-data-[size=lg]/menu-button:top-2.5",
         "group-data-[collapsible=icon]:hidden",
         showOnHover &&
-          "group-focus-within/menu-item:opacity-100 group-hover/menu-item:opacity-100 data-[state=open]:opacity-100 peer-data-[active=true]/menu-button:text-sidebar-accent-foreground md:opacity-0",
+        "group-focus-within/menu-item:opacity-100 group-hover/menu-item:opacity-100 data-[state=open]:opacity-100 peer-data-[active=true]/menu-button:text-sidebar-accent-foreground md:opacity-0",
         className
       )}
       {...props}
@@ -779,7 +779,7 @@ const SidebarHeader = ({ logo, children, menuItems }: HeaderProps) => {
             className={cn(
               "relative flex  items-center px-1 gap-0 w-full [&>span]:line-clamp-1 [&>span]:flex [&>span]:w-full [&>span]:items-center [&>span]:gap-1 [&>span]:truncate [&_svg]:h-4 [&_svg]:w-4 [&_svg]:shrink-0",
               isCollapsed &&
-                "flex h-9 w-9 shrink-0 items-center justify-center p-0 [&>span]:w-auto [&>svg]:hidden"
+              "flex h-9 w-9 shrink-0 items-center justify-center p-0 [&>span]:w-auto [&>svg]:hidden"
             )}
           >
             <DropdownMenu>
@@ -791,7 +791,7 @@ const SidebarHeader = ({ logo, children, menuItems }: HeaderProps) => {
                     "flex w-full items-center justify-center p-0 px-1 h-full",
                     isCollapsed && "px-0"
                   )}
-                  onClick={()=>router.push('/')}
+                  onClick={() => router.push('/')}
                 >
                   <div className={cn("flex gap-2 items-center cursor-pointer w-full h-full", isCollapsed && "justify-center")}>
                     {logo && (
@@ -804,7 +804,7 @@ const SidebarHeader = ({ logo, children, menuItems }: HeaderProps) => {
                         >
                           <Image
                             src={logo || ""}
-                            alt="Nepal Heritage Handicraft Logo"
+                            alt="Alphasuits Logo"
                             priority
                             width={100}
                             height={100}
@@ -1008,7 +1008,7 @@ const Navigationbar = () => {
         <AnimatePresence>
           {activeLinkIndex !== null && (
             <motion.div
-              {...{className:"relative rounded-[inherit] backdrop-blur-md flex overflow-hidden dark:bg-neutral-900/70 w-full border-[1px]"}}
+              {...{ className: "relative rounded-[inherit] backdrop-blur-md flex overflow-hidden dark:bg-neutral-900/70 w-full border-[1px]" }}
               initial={{ height: 0 }}
               animate={{ height: "auto" }}
               exit={{ height: 0 }}
@@ -1017,7 +1017,7 @@ const Navigationbar = () => {
             >
               <div className="p-1 w-full">
                 {links && links[activeLinkIndex].subLinks && (
-                  <motion.div {...{className:"flex flex-col w-full"}}>
+                  <motion.div {...{ className: "flex flex-col w-full" }}>
                     {links[activeLinkIndex].subLinks.map(
                       (subLink, subIndex) => (
                         <Button
@@ -1052,7 +1052,7 @@ const Navigationbar = () => {
                       }),
                       "h-9 w-9",
                       determineVariant(link.href) === "default" &&
-                        "dark:bg-muted dark:text-muted-foreground dark:hover:bg-muted dark:hover:text-white"
+                      "dark:bg-muted dark:text-muted-foreground dark:hover:bg-muted dark:hover:text-white"
                     )}
                   >
                     {link.icon && <link.icon className="h-4 w-4" />}
@@ -1090,9 +1090,8 @@ const CommandMenu = ({ children }: { children?: React.ReactNode }) => {
       ) : (
         <div className="p-2">
           <div
-            className={`relative dark:bg-muted dark:text-muted-foreground dark:hover:bg-muted dark:hover:text-white rounded-lg ${
-              isCollapsed ? "w-[36px] h-[36px]" : "w-full"
-            }`}
+            className={`relative dark:bg-muted dark:text-muted-foreground dark:hover:bg-muted dark:hover:text-white rounded-lg ${isCollapsed ? "w-[36px] h-[36px]" : "w-full"
+              }`}
           >
             {isCollapsed ? (
               <Tooltip delayDuration={0}>

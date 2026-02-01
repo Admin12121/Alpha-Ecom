@@ -30,10 +30,10 @@ export const updateWishlist = (productId: string): void => {
   const encryptedWishlist = localStorage.getItem("wishlist");
   const wishlist = encryptedWishlist
     ? JSON.parse(
-        CryptoJS.AES.decrypt(encryptedWishlist, NEXTAUTH_SECRET).toString(
-          CryptoJS.enc.Utf8
-        )
+      CryptoJS.AES.decrypt(encryptedWishlist, NEXTAUTH_SECRET).toString(
+        CryptoJS.enc.Utf8
       )
+    )
     : [];
   const productIndex = wishlist.indexOf(productId);
   if (productIndex > -1) {
@@ -132,6 +132,6 @@ export function unslugify(str: string) {
   return str.replace(/-/g, " ")
 }
 
-export const toPascalCase = (str: string): string => 
+export const toPascalCase = (str: string): string =>
   str.replace(/(\w)(\w*)/g, (_: string, first: string, rest: string) => first.toUpperCase() + rest.toLowerCase());
 

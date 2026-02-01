@@ -43,9 +43,9 @@ const geistSansBold = localFont({
 });
 
 export const metadata: Metadata = constructMetadata({
-  title: "Nepal Heritage Handicraft",
+  title: "Alphasuits",
   description:
-    "Authentic Nepalese art, sculptures, and handicrafts for cultural enthusiasts.",
+    "Premium suits, coats, and pants.",
   image: absoluteUrl("/og"),
 });
 

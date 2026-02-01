@@ -18,12 +18,18 @@ const Footer = () => {
           </div>
           <JoinNewsletterForm />
         </span>
-        <Image src="/footer.png" width={400} height={100} alt="store" className="border border-primary/10 bg-primary/10 w-full h-[150px] rounded-lg object-left object-contain opacity-90"/>
+        <Image
+          src="/footer.png"
+          width={400}
+          height={100}
+          alt="store"
+          className="border border-primary/10 bg-primary/10 w-full h-[150px] rounded-lg object-left object-contain opacity-90"
+        />
       </div>
       <section className="flex flex-col gap-10 justify-between lg:flex-row lg:gap-20">
         <section className=" lg:w-[500px]">
           <Link href="/" className="flex w-fit items-center space-x-2">
-            <span className="text-2xl font-semibold">{siteConfig.title}</span>
+            <Image src="/full_logo.webp" width={150} height={40} alt="logo" />
             <span className="sr-only">Home</span>
           </Link>
         </section>

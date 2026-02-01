@@ -59,7 +59,7 @@ const shipping = [
           guaranteed delivery times and should not be relied upon as such. If
           your order is late and you don&apos;t have any recent update on your
           tracking number, we kindly ask for you contact our Customer Support
-          Team at info@nepalheritagehandicraft.com.
+          Team at info@alphasuits.com.np.
         </p>
       </div>
     ),
@@ -111,7 +111,7 @@ const order = [
               Please note that as our team is constantly making efforts to get
               your order dispatched as quickly as possible, we may not be able
               to cancel your order upon request. Please send an email to
-              info@nepalheritagehandicraft.com requesting to cancel the order
+              info@alphasuits.com.np requesting to cancel the order
               and provide us with the name of the person who made the order, the
               email address, and the transactionuid or if your payment failed
               you can cancled your order by yourself.
@@ -135,7 +135,7 @@ const order = [
             Please note that as our team is constantly making efforts to get
             your order dispatched as quickly as possible, we&apos;re unable to
             guarantee changes to the delivery address. Once the order is
-            shipped, we at Nepal heritage handicraft will be unable to change
+            shipped, we at Alphasuits will be unable to change
             the delivery address.
           </p>
         </section>
@@ -152,7 +152,7 @@ const order = [
             Please note that as our team is constantly making efforts to get
             your order dispatched as quickly as possible, we may not be able to
             update your order upon request, either on items or delivery details.
-            Please send an email to info@nepalheritagehandicraft.com, if the order was not
+            Please send an email to info@alphasuits.com.np, if the order was not
             sent out when our support assistant reads your request, he/she may
             be able to update it.
           </p>

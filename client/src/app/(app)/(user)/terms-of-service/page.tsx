@@ -9,12 +9,12 @@ const Termsofservice = () => {
       <h1 className="text-3xl">Terms of service</h1>
       <span className="text-start">
         <p className="text-lg max-w-[50rem] text-neutral-950 dark:text-neutral-300">
-          Terms &amp; Conditions Nepal Heritage Handicraft{" "}
+          Terms &amp; Conditions Alphasuits{" "}
         </p>
         <p className="text-lg max-w-[50rem] text-neutral-700 dark:text-neutral-300">
           Please read these Terms &amp; Conditions (&quot;Terms &amp;
           Conditions&quot; or &quot;T&amp;C&quot;) carefully before using our
-          online store available at nepalheritagehandicraft.com (the &quot;Site&quot;). If you
+          online store available at alphasuits.com.np (the &quot;Site&quot;). If you
           do not agree with these Terms &amp; Conditions, please do not complete
           a purchase or engage in any other activity in our Site. By visiting
           our Site or completing a purchase, you agree to be bound by these

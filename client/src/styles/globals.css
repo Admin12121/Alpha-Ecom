@@ -52,16 +52,15 @@ body {
     --chart-5: 27 87% 67%;
     --radius: 0.5rem;
     --custom: 240 5.26% 26.08%;
-    --spring-easing: linear(
-      0,
-      0.88117 15.492%,
-      1.09261 23.232%,
-      1.10421 28.713%,
-      0.99031 49.585%,
-      0.99995
-    );
+    --spring-easing: linear(0,
+        0.88117 15.492%,
+        1.09261 23.232%,
+        1.10421 28.713%,
+        0.99031 49.585%,
+        0.99995);
     --stroke: "#1212";
   }
+
   .dark {
     --custombg: 0 0% 0%;
     --background: 0 0% 3.9%;
@@ -96,18 +95,17 @@ body {
   * {
     /* // @apply border-border; */
   }
+
   body {
     @apply bg-background text-foreground;
   }
 }
 
 .radial {
-  background-image: radial-gradient(
-    ellipse farthest-side,
-    white,
-    #716768,
-    black
-  );
+  background-image: radial-gradient(ellipse farthest-side,
+      white,
+      #716768,
+      black);
   background-size: 100% 90%;
   background-repeat: no-repeat;
 }
@@ -119,21 +117,17 @@ body {
 }
 
 .text-radial {
-  background-image: radial-gradient(
-    ellipse farthest-side,
-    rgba(113, 103, 104, 0.2) 30%,
-    black 70%
-  );
+  background-image: radial-gradient(ellipse farthest-side,
+      rgba(113, 103, 104, 0.2) 30%,
+      black 70%);
   background-size: 100% 50%;
   background-repeat: no-repeat;
 }
 
 .text-radial--circle {
-  background-image: radial-gradient(
-    circle farthest-side,
-    rgba(113, 103, 104, 0.35) 20%,
-    black 70%
-  );
+  background-image: radial-gradient(circle farthest-side,
+      rgba(113, 103, 104, 0.35) 20%,
+      black 70%);
   background-size: 50% 70%;
   background-repeat: no-repeat;
   background-position: top center;
@@ -151,11 +145,9 @@ body {
 
 @media only screen and (max-width: 800px) {
   .text-radial--circle {
-    background-image: radial-gradient(
-      circle farthest-side,
-      rgba(113, 103, 104, 0.2) 20%,
-      black 70%
-    );
+    background-image: radial-gradient(circle farthest-side,
+        rgba(113, 103, 104, 0.2) 20%,
+        black 70%);
     background-size: 100% 50%;
     background-repeat: no-repeat;
     background-position: top center;
@@ -171,76 +163,64 @@ body {
 }
 
 .img--overlay {
-  background-image: -webkit-linear-gradient(
-    to bottom,
-    rgba(0, 0, 0, 0),
-    rgba(0, 0, 0, 1)
-  ); /* For Chrome 25 and Safari 6, iOS 6.1, Android 4.3 */
-  background-image: -moz-linear-gradient(
-    to bottom,
-    rgba(0, 0, 0, 0),
-    rgba(0, 0, 0, 1)
-  ); /* For Firefox (3.6 to 15) */
-  background-image: -o-linear-gradient(
-    to bottom,
-    rgba(0, 0, 0, 0),
-    rgba(0, 0, 0, 1)
-  ); /* For old Opera (11.1 to 12.0) */
-  background-image: linear-gradient(
-    to bottom,
-    rgba(0, 0, 0, 0),
-    rgba(0, 0, 0, 1)
-  ); /* Standard syntax; must be last */
+  background-image: -webkit-linear-gradient(to bottom,
+      rgba(0, 0, 0, 0),
+      rgba(0, 0, 0, 1));
+  /* For Chrome 25 and Safari 6, iOS 6.1, Android 4.3 */
+  background-image: -moz-linear-gradient(to bottom,
+      rgba(0, 0, 0, 0),
+      rgba(0, 0, 0, 1));
+  /* For Firefox (3.6 to 15) */
+  background-image: -o-linear-gradient(to bottom,
+      rgba(0, 0, 0, 0),
+      rgba(0, 0, 0, 1));
+  /* For old Opera (11.1 to 12.0) */
+  background-image: linear-gradient(to bottom,
+      rgba(0, 0, 0, 0),
+      rgba(0, 0, 0, 1));
+  /* Standard syntax; must be last */
 }
 
 .slider-overlay {
-  background-image: -webkit-linear-gradient(
-    to right,
-    rgba(0, 0, 0, 1),
-    rgba(0, 0, 0, 0)
-  ); /* For Chrome 25 and Safari 6, iOS 6.1, Android 4.3 */
-  background-image: -moz-linear-gradient(
-    to right,
-    rgba(0, 0, 0, 1),
-    rgba(0, 0, 0, 0)
-  ); /* For Firefox (3.6 to 15) */
-  background-image: -o-linear-gradient(
-    to right,
-    rgba(0, 0, 0, 1),
-    rgba(0, 0, 0, 0)
-  ); /* For old Opera (11.1 to 12.0) */
-  background-image: linear-gradient(
-    to right,
-    rgba(0, 0, 0, 1),
-    rgba(0, 0, 0, 0)
-  ); /* Standard syntax; must be last */
+  background-image: -webkit-linear-gradient(to right,
+      rgba(0, 0, 0, 1),
+      rgba(0, 0, 0, 0));
+  /* For Chrome 25 and Safari 6, iOS 6.1, Android 4.3 */
+  background-image: -moz-linear-gradient(to right,
+      rgba(0, 0, 0, 1),
+      rgba(0, 0, 0, 0));
+  /* For Firefox (3.6 to 15) */
+  background-image: -o-linear-gradient(to right,
+      rgba(0, 0, 0, 1),
+      rgba(0, 0, 0, 0));
+  /* For old Opera (11.1 to 12.0) */
+  background-image: linear-gradient(to right,
+      rgba(0, 0, 0, 1),
+      rgba(0, 0, 0, 0));
+  /* Standard syntax; must be last */
 }
 
 .slider-overlay-rev {
-  background-image: -webkit-linear-gradient(
-    to right,
-    rgba(0, 0, 0, 0),
-    rgba(0, 0, 0, 0.8),
-    rgba(0, 0, 0, 1)
-  ); /* For Chrome 25 and Safari 6, iOS 6.1, Android 4.3 */
-  background-image: -moz-linear-gradient(
-    to right,
-    rgba(0, 0, 0, 0),
-    rgba(0, 0, 0, 0.8),
-    rgba(0, 0, 0, 1)
-  ); /* For Firefox (3.6 to 15) */
-  background-image: -o-linear-gradient(
-    to right,
-    rgba(0, 0, 0, 0),
-    rgba(0, 0, 0, 0.8),
-    rgba(0, 0, 0, 1)
-  ); /* For old Opera (11.1 to 12.0) */
-  background-image: linear-gradient(
-    to right,
-    rgba(0, 0, 0, 0),
-    rgba(0, 0, 0, 0.8),
-    rgba(0, 0, 0, 1)
-  ); /* Standard syntax; must be last */
+  background-image: -webkit-linear-gradient(to right,
+      rgba(0, 0, 0, 0),
+      rgba(0, 0, 0, 0.8),
+      rgba(0, 0, 0, 1));
+  /* For Chrome 25 and Safari 6, iOS 6.1, Android 4.3 */
+  background-image: -moz-linear-gradient(to right,
+      rgba(0, 0, 0, 0),
+      rgba(0, 0, 0, 0.8),
+      rgba(0, 0, 0, 1));
+  /* For Firefox (3.6 to 15) */
+  background-image: -o-linear-gradient(to right,
+      rgba(0, 0, 0, 0),
+      rgba(0, 0, 0, 0.8),
+      rgba(0, 0, 0, 1));
+  /* For old Opera (11.1 to 12.0) */
+  background-image: linear-gradient(to right,
+      rgba(0, 0, 0, 0),
+      rgba(0, 0, 0, 0.8),
+      rgba(0, 0, 0, 1));
+  /* Standard syntax; must be last */
 }
 
 .tiptap p.is-editor-empty:first-child::before {
@@ -325,6 +305,7 @@ body {
   display: flex;
   align-items: center;
 }
+
 .socials .social-link {
   display: inline-block;
   margin-left: 8px;
@@ -332,6 +313,7 @@ body {
 }
 
 @media screen and (max-width: 520px) {
+
   .swiper-button-next:hover:before,
   .swiper-button-prev:hover:before {
     display: none;
@@ -355,6 +337,7 @@ body {
   border-radius: 3px !important;
   background-color: #373737 !important;
 }
+
 .swiper-pagination-bullet-active {
   background-color: #0a0a0a !important;
   width: 25px !important;
@@ -366,12 +349,14 @@ body {
     height: 0;
     opacity: 0.5;
   }
+
   100% {
     width: 820px;
     height: 820px;
     opacity: 0;
   }
 }
+
 .ripple {
   width: 20px;
   height: 20px;
@@ -416,27 +401,23 @@ body {
 .page_lightA__3_ZLn {
   transform: translateY(-350px) rotate(-45deg);
   width: 560px;
-  background: radial-gradient(
-    68.54% 68.72% at 55.02% 31.46%,
-    hsla(0, 0%, 85%, 0.08) 0,
-    hsla(0, 0%, 55%, 0.02) 50%,
-    hsla(0, 0%, 45%, 0) 80%
-  );
+  background: radial-gradient(68.54% 68.72% at 55.02% 31.46%,
+      hsla(0, 0%, 85%, 0.08) 0,
+      hsla(0, 0%, 55%, 0.02) 50%,
+      hsla(0, 0%, 45%, 0) 80%);
 }
 
 .page_lightB__k6xoL {
   transform: rotate(-45deg) translate(5%, -50%);
   transform-origin: top left;
   width: 240px;
-  background: radial-gradient(
-    50% 50% at 50% 50%,
-    hsla(0, 0%, 85%, 0.06) 0,
-    hsla(0, 0%, 45%, 0.02) 80%,
-    transparent 100%
-  );
+  background: radial-gradient(50% 50% at 50% 50%,
+      hsla(0, 0%, 85%, 0.06) 0,
+      hsla(0, 0%, 45%, 0.02) 80%,
+      transparent 100%);
 }
 
-.page_ambientLight___Dvmo > * {
+.page_ambientLight___Dvmo>* {
   position: absolute;
   inset: 0;
 }
@@ -450,19 +431,17 @@ body {
   left: 0;
   width: 240px;
   height: 1380px;
-  background: radial-gradient(
-    50% 50% at 50% 50%,
-    hsla(0, 0%, 85%, 0.04) 0,
-    hsla(0, 0%, 45%, 0.02) 80%,
-    transparent 100%
-  );
+  background: radial-gradient(50% 50% at 50% 50%,
+      hsla(0, 0%, 85%, 0.04) 0,
+      hsla(0, 0%, 45%, 0.02) 80%,
+      transparent 100%);
 }
 
 .fancy-button {
   --tw-ring-shadow: 0 0 #0000;
   --tw-ring-offset-shadow: 0 0 #0000;
-  --tw-shadow-colored: 0 1px 2px 0 var(--tw-shadow-color),0 0 0 1px var(--tw-shadow-color);
-  box-shadow: var(--tw-ring-offset-shadow,0 0 #0000),var(--tw-ring-shadow,0 0 #0000),0 1px 2px 0 #1b1c1d7a, 0 0 0 1px #242628;
+  --tw-shadow-colored: 0 1px 2px 0 var(--tw-shadow-color), 0 0 0 1px var(--tw-shadow-color);
+  box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), 0 1px 2px 0 #1b1c1d7a, 0 0 0 1px #242628;
 }
 
 .fancy-button::before {
@@ -472,22 +451,19 @@ body {
   mask-composite: exclude;
   mask-clip: content-box, border-box;
   padding: .5px;
-  background-image: linear-gradient(
-    to bottom,
-    #474747e6,
-    transparent
-  );
+  background-image: linear-gradient(to bottom,
+      #474747e6,
+      transparent);
   inset: 0;
   border-radius: inherit;
 }
+
 .fancy-button::after {
   content: "";
   position: absolute;
-  background-image: linear-gradient(
-    to bottom,
-    rgb(255 255 255/0.9),
-    transparent
-  );
+  background-image: linear-gradient(to bottom,
+      rgb(255 255 255/0.9),
+      transparent);
   inset: 0;
   opacity: .16;
   border-radius: inherit;

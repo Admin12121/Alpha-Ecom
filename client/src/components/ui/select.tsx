@@ -26,7 +26,7 @@ interface SelectTriggerProps extends React.ComponentPropsWithoutRef<typeof Selec
 const SelectTrigger = React.forwardRef<
   React.ElementRef<typeof SelectPrimitive.Trigger>,
   SelectTriggerProps
->(({ className, icon = true,customIcon, children, ...props }, ref) => (
+>(({ className, icon = true, customIcon, children, ...props }, ref) => (
   <SelectPrimitive.Trigger
     ref={ref}
     className={cn(

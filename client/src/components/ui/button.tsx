@@ -40,7 +40,7 @@ const buttonVariants = cva(
 
 export interface ButtonProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement>,
-    VariantProps<typeof buttonVariants> {
+  VariantProps<typeof buttonVariants> {
   asChild?: boolean;
   loading?: boolean;
   icon?: React.ReactNode;
@@ -79,10 +79,9 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         border-radius: 50%; 
         animation: ripple .8s linear infinite; 
         transition: .5s;
-        ${
-          variant === "default"
-            ? "background: #000000bd"
-            : "background: rgba(255, 255, 255, 0.7)"
+        ${variant === "default"
+          ? "background: #000000bd"
+          : "background: rgba(255, 255, 255, 0.7)"
         }`;
       ripples.className = "ripple";
       button.appendChild(ripples);

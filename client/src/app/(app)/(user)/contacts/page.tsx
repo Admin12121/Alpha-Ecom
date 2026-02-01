@@ -34,7 +34,7 @@ const supportOptions: SupportOption[] = [
   {
     title: "General contact",
     description: "Speak to one of our agents.",
-    link: "mailto:contact@nepalheritagehandicraft.com",
+    link: "mailto:info@alphasuits.com.np",
     buttonLabel: "Send email",
     buttonVariant: "outline",
     buttonClass: "border-gray-300 text-gray-700 hover:bg-gray-50",
@@ -42,7 +42,7 @@ const supportOptions: SupportOption[] = [
   {
     title: "Call us",
     description: "Speak to one of our agents.",
-    link: "https://wa.me/97798178787989",
+    link: "https://wa.me/9779851191337",
     buttonLabel: "Call us",
     buttonVariant: "outline",
     buttonClass: "border-gray-300 text-gray-700 hover:bg-gray-50",

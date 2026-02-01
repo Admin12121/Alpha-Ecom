@@ -75,7 +75,7 @@ class NewsLetterViewSet(viewsets.ModelViewSet):
         instance = serializer.save()
         
         try:
-            subject = "Welcome to Nepal Heritage Handicraft Newsletter 💖"
+            subject = "Welcome to Alphasuits Newsletter 💖"
             body = render_to_string("newsletter_welcome.html")
             send_email(subject, instance.email, body)
         except Exception as e:

@@ -25,10 +25,10 @@ const items = [
         <section className="space-y-6 ">
           <span>
             <p>
-              This website is operated by Nepal Heritage Handicraft, a private
-              limited liability company incorporated in Patan,Lalitpur,Nepal.
-              Throughout the site, the terms “we”, “us” and “our” refer to Nepal
-              Heritage Handicraft. Nepal Heritage Handicraft offers this
+              This website is operated by Alphasuits, a private
+              limited liability company incorporated in Sundhara, Kathmandu, Nepal.
+              Throughout the site, the terms “we”, “us” and “our” refer to Alphasuits.
+              Alphasuits offers this
               website, including all information, tools, and services available
               from this site to you, the user, conditioned upon your acceptance
               of all terms, conditions, policies, and notices stated here.
@@ -41,14 +41,14 @@ const items = [
   {
     id: "2",
     title:
-      "Terms & Conditions regarding use of the online store nepalheritagehandicraft.com",
+      "Terms & Conditions regarding use of the online store alphasuits.com.np",
     content: (
       <div className="flex flex-col pb-3 pt-3 text-base dark:text-muted-foreground">
         <section className="space-y-6">
           <p>
             These Terms & Conditions regulate the use of the online store
-            nepalheritagehandicraft.com, including the purchase of any available
-            products. Through this Site, Nepal Heritage Handicraft sells
+            alphasuits.com.np, including the purchase of any available
+            products. Through this Site, Alphasuits sells
             exclusively to consumers. If we conclude that a certain order is not
             placed by a consumer or, in general, if an order is deemed to be
             fraudulent or presumed as such, we will consider it null and void.
@@ -56,17 +56,17 @@ const items = [
             available activity, you agree to comply with these Terms &
             Conditions, which constitute an agreement between the person
             accepting these Terms & Conditions (hereinafter &ldquo;Customer&rdquo;, &ldquo;you&rdquo; or
-            &ldquo;your&rdquo;) and Nepal Heritage Handicraft. The acceptance of these Terms
+            &ldquo;your&rdquo;) and Alphasuits. The acceptance of these Terms
             and Conditions entails that the purchase of any products on our Site
             is not directly related to any professional activity and is limited
             to strictly personal use. The Customer, before placing an order,
             declares to have legal capacity that allows him to fully comply with
             the commitments arising from the conclusion of the agreement, namely
-            payment. Nepal Heritage Handicraft shall not be held liable for any
+            payment. Alphasuits shall not be held liable for any
             purchases placed by a person without full legal capacity. If an
             order is placed by a person without legal capacity, the legal
             representatives shall be responsible for such order and all related
-            obligations. Nepal Heritage Handicraft may, at its own discretion
+            obligations. Alphasuits may, at its own discretion
             and convenience, at any time and without prior notice, suspend the
             Site, in particular to ensure its repair and maintenance, or close
             it completely.
@@ -74,8 +74,8 @@ const items = [
           <p>
             If your data is being processed based on your consent, you may
             withdraw your consent at any time. The withdrawal of consent will
-            not affect the lawfulness of processing based on consent that Nepal
-            Heritage Handicraft carried out before the withdrawal.
+            not affect the lawfulness of processing based on consent that Alphasuits
+            carried out before the withdrawal.
           </p>
         </section>
       </div>
@@ -89,8 +89,8 @@ const items = [
         <p>
           All copyright, trademarks and other intellectual or industrial
           property rights inherent to the products, texts, images and other
-          content in general, shared on our Site, are owned by Nepal Heritage
-          Handicraft or are being used by us with the permission of the
+          content in general, shared on our Site, are owned by Alphasuits
+          or are being used by us with the permission of the
           respective owner. Access, viewing or downloading of Site content must
           respect the intellectual property rights that protect such content. In
           particular, it is prohibited to extract, use, reproduce or disseminate
@@ -112,14 +112,14 @@ const items = [
       <div className="flex flex-col pb-3 pt-3 text-base dark:text-muted-foreground">
         <p>
           Our Site may display links to other websites or applications that are
-          not under the control of Nepal Heritage Handicraft and for which Nepal
-          Heritage Handicraft is not responsible. Nepal Heritage Handicraft does
+          not under the control of Alphasuits and for which Alphasuits
+          is not responsible. Alphasuits does
           not have control over and assumes no responsibility for the content,
           privacy policies or practices of any third party websites or services.
-          In particular, Nepal Heritage Handicraft does not guarantee the
+          In particular, Alphasuits does not guarantee the
           reliability of the contents of these links nor is it responsible for
-          changes to them. You further acknowledge and agree that Nepal Heritage
-          Handicraft shall not be responsible or liable, directly or indirectly,
+          changes to them. You further acknowledge and agree that Alphasuits
+          shall not be responsible or liable, directly or indirectly,
           for any damage or loss alleged to be caused by or in connection with
           the use of any content, goods or services available on or through any
           such websites, apps or services.
@@ -164,7 +164,7 @@ const items = [
           of the product or products they wish to purchase.
         </p>
         <p>
-          Nepal Heritage Handicraft does not assure that the product package
+          Alphasuits does not assure that the product package
           information is translated in every language. However, this information
           will be available at least in English.
         </p>
@@ -175,14 +175,14 @@ const items = [
           they are displayed and up to the stock limits.
         </p>
         <p>
-          Nepal Heritage Handicraft may change the variety of products offered
+          Alphasuits may change the variety of products offered
           for sale on the Site at any time, in accordance with specific
           limitations related to its suppliers, without prejudice to the orders
           already placed by the Customer.
         </p>
         <p>
-          If the product ordered by the Customer is no longer available, Nepal
-          Heritage Handicraft will immediately inform the Customer and refund
+          If the product ordered by the Customer is no longer available, Alphasuits
+          will immediately inform the Customer and refund
           the price of the product to the payment method used by the Customer
           during the purchase, within 10 days of becoming aware of the
           unavailability of the product.
@@ -205,14 +205,14 @@ const items = [
           order.
         </p>
         <p>
-          Nepal Heritage Handicraft will send an email confirmation to the
+          Alphasuits will send an email confirmation to the
           address indicated by the Customer, including a copy of these Terms &
-          Conditions. Nepal Heritage Handicraft is not responsible for
+          Conditions. Alphasuits is not responsible for
           unreceived confirmation emails if there are errors in the email
           provided by the Customer.
         </p>
         <p>
-          Nepal Heritage Handicraft reserves the right to suspend or cancel any
+          Alphasuits reserves the right to suspend or cancel any
           order and/or delivery, regardless of its nature and level of
           execution, in case of lack of or partial payment of any amount owed by
           the Customer, in case of payment incidents, or in the event of fraud
@@ -237,16 +237,14 @@ const items = [
         <p>
           All bank card payments are subject to validation and authorization
           checks by the card issuer. If the bank card issuer denies, or for any
-          reason does not authorize the payment, Nepal Heritage Handicraft will
+          reason does not authorize the payment, Alphasuits will
           not be responsible for any delay or non-delivery of any orders.
         </p>
 
         <h2>4. Shipping and Delivery</h2>
         <p>
-          Nepal Heritage Handicraft offers a variety of shipping methods and
           rates, from which the Customer may choose. The availability of
-          shipping methods may be changed at any time by Nepal Heritage
-          Handicraft.
+          shipping methods may be changed at any time by Alphasuits.
         </p>
         <Table>
           <TableHeader>
@@ -290,20 +288,20 @@ const items = [
           Customer or the person authorized to receive the order detects any
           damage or anomaly in the package or in the product, or the absence of
           any product ordered, they must refuse the delivery and promptly
-          contact Nepal Heritage Handicraft’s Customer Service (contact details
+          contact Alphasuits’s Customer Service (contact details
           below).
         </p>
         <p>
           If the damage or anomaly is detected only after the conclusion of the
           delivery, the Customer or the person authorized to receive the order
-          must promptly contact Nepal Heritage Handicraft’s Customer Service.
+          must promptly contact Alphasuits’s Customer Service.
         </p>
         <p>
           Any damage or anomaly must be reported to Customer Service within 5
           working days after receipt. Customer Service will conduct a thorough
           analysis of the issue reported. In the event that Customer Service
-          concludes that the damage or anomaly was Nepal Heritage Handicraft’s
-          or the carrier’s fault, Nepal Heritage Handicraft will replace the
+          concludes that the damage or anomaly was Alphasuits’s
+          or the carrier’s fault, Alphasuits will replace the
           defective/damaged items by sending a new shipment OR refund the amount
           spent on the items with anomalies, according to the Customer’s best
           interests.
@@ -318,9 +316,9 @@ const items = [
           delivery.
         </p>
         <p>
-          Notwithstanding the foregoing, Nepal Heritage Handicraft will ship the
+          Notwithstanding the foregoing, Alphasuits will ship the
           order at most 30 days after the conclusion of the agreement in
-          accordance with paragraph 9.2. If Nepal Heritage Handicraft is unable
+          accordance with paragraph 9.2. If Alphasuits is unable
           to deliver the order within this timeframe due to the unavailability
           of the products, we will inform the Customer and fully reimburse them
           within 30 days of such unavailability.
@@ -341,11 +339,11 @@ const items = [
         <p>
           The system that allows Customers to publish reviews permits them to
           leave reviews, advice, tips, suggestions, information, and
-          recommendations regarding products sold by Nepal Heritage Handicraft
+          recommendations regarding products sold by Alphasuits
           and assign them a rating that can vary between one and five stars.
         </p>
         <p>
-          Nepal Heritage Handicraft will eliminate any review that we conclude
+          Alphasuits will eliminate any review that we conclude
           was published in breach of these Terms & Conditions.
         </p>
         <p>
@@ -409,7 +407,7 @@ const items = [
           </li>
           <li>
             Comments that encourage the purchase of products from a competitor
-            of Nepal Heritage Handicraft.
+            of Alphasuits.
           </li>
         </ul>
         <p>
@@ -417,12 +415,12 @@ const items = [
           respective reviews.
         </p>
         <p>
-          Upon completion of the review, Nepal Heritage Handicraft will send a
+          Upon completion of the review, Alphasuits will send a
           communication to the email provided to verify if the person wrote the
           review.
         </p>
         <p>
-          Nepal Heritage Handicraft reserves the right not to publish or to
+          Alphasuits reserves the right not to publish or to
           eliminate any review that contends with these Terms & Conditions. In
           this situation, the Customer will be notified by email.
         </p>
@@ -436,13 +434,13 @@ const items = [
       <div className="flex flex-col pb-3 gap-2 pt-3 text-base dark:text-muted-foreground">
         <p>
           For any additional information or if you need assistance, you may
-          reach Nepal Heritage Handicraft through the following contacts: ·
+          reach Alphasuits through the following contacts: ·
         </p>
         <a
-          href="mailto:info@nepalheritagehandicraft.com"
+          href="mailto:info@alphasuits.com.np"
           className="cursor-pointer dark:text-white text-black"
         >
-          info@nepalheritagehandicraft.com
+          info@alphasuits.com.np
         </a>
       </div>
     ),
@@ -453,14 +451,14 @@ const items = [
     content: (
       <div className="flex flex-col pb-3 gap-2 pt-3 text-base dark:text-muted-foreground">
         <p>
-          Nepal Heritage Handicraft is not liable for failure to comply with the
+          Alphasuits is not liable for failure to comply with the
           obligations set forth herein if the failure to comply is due to any
           act of any third party, even if foreseeable, results from any fault of
           the Customer, or from a force majeure event, or any other event that
-          is not reasonably within the control of Nepal Heritage Handicraft.
+          is not reasonably within the control of Alphasuits.
         </p>
         <p>
-          Nepal Heritage Handicraft assumes no responsibility for any failure or
+          Alphasuits assumes no responsibility for any failure or
           non-conformity of its services caused by circumstances beyond its
           control. These circumstances may include, but are not limited to,
           failures in the functioning of the Site resulting from the law, acts
@@ -476,7 +474,7 @@ const items = [
           the Customer intends to make.
         </p>
         <p>
-          Nepal Heritage Handicraft rejects any responsibility for any direct,
+          Alphasuits rejects any responsibility for any direct,
           indirect and/or accidental damages resulting from the Customer&apos;s use
           or inability to use the content and services contained on our Site.
         </p>
@@ -499,14 +497,13 @@ const items = [
       <div className="flex flex-col pb-3 gap-2 pt-3 text-base dark:text-muted-foreground">
         <p>
           These Terms and Conditions may be updated at any time. Therefore,
-          Nepal Heritage Handicraft recommends that you visit this document
+          Alphasuits recommends that you visit this document
           regularly. Visiting our Site or completing a purchase are subject to
           the Terms and Conditions in force in that moment.
         </p>
         <p>
-          Whenever there is a change to these Terms and Conditions, Nepal
-          Heritage Handicraft will publish it on this page. Furthermore, if the
-          changes can impact the relationship between Nepal Heritage Handicraft
+          Alphasuits will publish it on this page. Furthermore, if the
+          changes can impact the relationship between Alphasuits
           and its Customers, we will publish a more detailed notice and/or
           notify you by email, if you have registered in our Site.
         </p>
@@ -528,7 +525,7 @@ export default function TermsofConditionsAccordion() {
             key={item.id}
             className="rounded-lg bg-background dark:bg-neutral-900 px-4 py-1"
           >
-            <AccordionTrigger icon={<ChevronDown className="text-neutral-700"/>} className="py-2 text-base leading-6 hover:no-underline w-full md:w-[50rem]">
+            <AccordionTrigger icon={<ChevronDown className="text-neutral-700" />} className="py-2 text-base leading-6 hover:no-underline w-full md:w-[50rem]">
               {item.title}
             </AccordionTrigger>
             <AccordionContent className="pb-2 text-muted-foreground max-w-[50rem]">

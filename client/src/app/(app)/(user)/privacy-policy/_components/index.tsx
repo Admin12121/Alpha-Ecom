@@ -146,11 +146,10 @@ const items = [
           <p>
             If your data is being processed based on your consent, you may
             withdraw your consent at any time. The withdrawal of consent will
-            not affect the lawfulness of processing based on consent that Nepal
-            Heritage Handicraft carried out before the withdrawal.
+            Alphasuits carried out before the withdrawal.
           </p>
           <h4 className="text-base">
-            More specifically, Nepal Heritage Handicraft processes your Personal
+            More specifically, Alphasuits processes your Personal
             Information:
           </h4>
           <ul className="list-disc list-inside px-3 space-y-2">
@@ -163,10 +162,10 @@ const items = [
               activities or at your request.
             </li>
             <li>
-              Nepal Heritage Handicraft may use your email address or phone
+              Alphasuits may use your email address or phone
               number to send you notices (including any notices required by law,
               in lieu of communication by postal mail). If you correspond with
-              Nepal Heritage Handicraft by email, we may retain the content of
+              Alphasuits by email, we may retain the content of
               your email messages, your email address, and our responses.
             </li>
             <li>
@@ -176,7 +175,7 @@ const items = [
               to advertise other products that you might be interested in, to
               notify you of items left as uncompleted transactions in your
               shopping cart, and related communications. Nepal Heritage
-              Handicraft has a legitimate interest in collecting and using your
+              Alphasuits has a legitimate interest in collecting and using your
               email and information about your abandoned shopping cart to
               communicate with you about your uncompleted transaction.
             </li>
@@ -208,8 +207,7 @@ const items = [
           <h4 className="text-base">Transfer of Personal Information:</h4>
           <p>
             For providing you our Services, we may transfer and share your
-            Personal Information to other entities of Nepal Heritage
-            Handicraft’s group and to third parties that may be located in other
+            Personal Information to other entities of Alphasuits’s group and to third parties that may be located in other
             countries. Namely, we use service providers and intermediaries, such
             as companies that provide technological support and electronic
             payment processing companies, which must have access to some of your
@@ -262,11 +260,10 @@ const items = [
       <div className="flex flex-col pb-3 pt-3 text-base dark:text-muted-foreground">
         <p>
           The entity responsible for the processing of your personal data
-          (Controller) is Nepal Heritage Handicraft Shop Trading LTD, a private
+          (Controller) is Alphasuits, a private
           limited liability company constituted under the laws of Nepal and
-          registered under number 980803543, with registered office at Patan,
-          Lalitpur, Nepal 44700, hereinafter referred as “Nepal Heritage
-          Handicraft,” “us,” or “we.” If you have any questions about this
+          registered under number 9851191337, with registered office at Sundhara,
+          Kathmandu, Nepal, hereinafter referred as “Alphasuits,” “us,” or “we.” If you have any questions about this
           Privacy Policy or how we process your data, please refer to the
           ‘Contact Us’ section below.
         </p>
@@ -274,8 +271,8 @@ const items = [
           If you would like to: access, correct, amend or delete any personal
           information we have about you, register a complaint, or simply want
           more information, contact our Privacy Compliance Officer at
-          contact@nepalheritagehandicraft.com or by mail at Nepal Heritage
-          Handicraft.
+          more information, contact our Privacy Compliance Officer at
+          info@alphasuits.com.np or by mail at Alphasuits.
         </p>
       </div>
     ),
