@@ -2,7 +2,6 @@ import os
 from pathlib import Path
 from datetime import timedelta
 from decouple import config
-import logging
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -64,22 +63,26 @@ WSGI_APPLICATION = 'server.wsgi.application'
 
 AUTH_USER_MODEL = 'account.User'
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
-}
-
 # DATABASES = {
 #     'default': {
-#         'ENGINE': 'django.db.backends.mysql',
-#         'NAME': config('DB_name'),
-#         'USER': config('DB_user'),
-#         'PASSWORD': config('DB_password'),
-#         'HOST': config('DB_Host'),
-#         'PORT': '3306',
-# }}
+#         'ENGINE': 'django.db.backends.sqlite3',
+#         'NAME': BASE_DIR / 'db.sqlite3',
+#     }
+# }
+
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': config('DB_NAME'),
+        'USER': config('DB_USER'),
+        'PASSWORD': config('DB_PASSWORD'),
+        'HOST': config('DB_HOST'),
+        'PORT': '3306',
+        'OPTIONS': {
+            'init_command': "SET sql_mode='STRICT_TRANS_TABLES'"
+        }
+    }
+}
 
 AUTH_PASSWORD_VALIDATORS = [
     {
@@ -147,75 +150,8 @@ CORS_ALLOW_ALL_ORIGINS = True
 # CSRF_COOKIE_SECURE = True
 # SESSION_COOKIE_SECURE = True
 
-PASSWORD_RESET_TIMEOUT=300          # 300 Sec = 5 Min
+PASSWORD_RESET_TIMEOUT=300
 
 FILE_UPLOAD_HANDLERS = [
     'django.core.files.uploadhandler.TemporaryFileUploadHandler',
 ]
-
-
-class CustomFormatter(logging.Formatter):
-    def format(self, record):
-        if not hasattr(record, 'user'):
-            record.user = 'AnonymousUser'
-        return super().format(record)
-
-# LOGGING = {
-#     'version': 1,
-#     'disable_existing_loggers': True,
-#     'formatters': {
-#         'verbose': {
-#             '()': CustomFormatter,
-#             'format': '%(asctime)s - %(name)s - %(levelname)s - %(user)s - %(message)s',
-#             'datefmt': '%Y-%m-%d %H:%M:%S',
-#         },
-#     },
-#     'handlers': {
-#         'rotating_file': {
-#             'level': 'DEBUG',
-#             'class': 'logging.handlers.TimedRotatingFileHandler',
-#             'filename': os.path.join(BASE_DIR, 'logs/django.log'),
-#             'when': 'midnight',
-#             'interval': 30,
-#             'backupCount': 12, 
-#             'formatter': 'verbose',
-#         },
-#     },
-#     'loggers': {
-#         'products': {
-#             'handlers': ['rotating_file'],
-#             'level': 'DEBUG',
-#             'propagate': False,
-#         },
-#         'sales': {
-#             'handlers': ['rotating_file'],
-#             'level': 'DEBUG',
-#             'propagate': False,
-#         },
-#         'django': {
-#             'handlers': [],
-#             'level': 'ERROR',  
-#             'propagate': False,  
-#         },
-#         'django.request': {
-#             'handlers': [],
-#             'level': 'ERROR',  
-#             'propagate': False,
-#         },
-#         'django.server': {
-#             'handlers': [],
-#             'level': 'ERROR', 
-#             'propagate': False,
-#         },
-#         'django.db.backends': {
-#             'handlers': [],
-#             'level': 'ERROR',  
-#             'propagate': False,
-#         },
-#         'django.security': {
-#             'handlers': [],
-#             'level': 'ERROR', 
-#             'propagate': False,
-#         },
-#     },
-# }

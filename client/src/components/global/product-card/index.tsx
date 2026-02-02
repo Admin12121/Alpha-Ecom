@@ -5,7 +5,7 @@ import Image from "next/image";
 import { cn } from "@/lib/utils";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { useUpdateQueryParams } from "@/lib/query-params";
-import React, { useState, useDeferredValue, useEffect, useMemo } from "react";
+import React, { useState, useDeferredValue, useEffect } from "react";
 import { Autoplay, Navigation, Pagination, EffectFade } from "swiper/modules";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -61,16 +61,13 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   const [showColorPicker, setShowColorPicker] = useState(false);
 
   // Use backend colors if available, otherwise empty array
-  const availableColors: Color[] = useMemo(() => {
-    if (data.colors && data.colors.length > 0) {
-      return data.colors.map((color, index) => ({
-        id: index + 1,
-        name: color.color_name,
-        code: color.color_code,
-      }));
-    }
-    return [];
-  }, [data.colors]);
+  const availableColors: Color[] = data.colors && data.colors.length > 0
+    ? data.colors.map((color, index) => ({
+      id: index + 1,
+      name: color.color_name,
+      code: color.color_code,
+    }))
+    : [];
 
   // Initialize with first color
   useEffect(() => {
@@ -111,55 +108,45 @@ export const ProductCard: React.FC<ProductCardProps> = ({
     }
   }, [data?.variants]);
 
-  // Type-safe variant data getter with memoization
-  const getVariantData = useMemo(() => {
-    return (
-      variantsData: VariantObject[] | VariantObject | null,
-      key: keyof VariantObject,
-      index: number = 0
-    ): string | number | null => {
-      if (Array.isArray(variantsData)) {
-        const variant = variantsData.find((variant) => variant.id === index);
-        return variant ? (variant[key] ?? null) : null;
-      }
-      if (variantsData) {
-        return variantsData[key] ?? null;
-      }
-      return null;
-    };
-  }, []);
+  // Type-safe variant data getter
+  const getVariantData = (
+    variantsData: VariantObject[] | VariantObject | null,
+    key: keyof VariantObject,
+    index: number = 0
+  ): string | number | null => {
+    if (Array.isArray(variantsData)) {
+      const variant = variantsData.find((variant) => variant.id === index);
+      return variant ? (variant[key] ?? null) : null;
+    }
+    if (variantsData) {
+      return variantsData[key] ?? null;
+    }
+    return null;
+  };
 
-  // Memoize variant data to prevent recalculation on every render
-  const { convertedPrice, discount, stocks } = useMemo(() => {
-    const price = getVariantData(
-      variantsData,
-      "price",
-      selectedSize?.id
-    ) as number;
-    const disc = getVariantData(
-      variantsData,
-      "discount",
-      selectedSize?.id
-    ) as number;
-    const stock = getVariantData(
-      variantsData,
-      "stock",
-      selectedSize?.id
-    ) as number;
+  // Calculate variant data
+  const convertedPrice = (getVariantData(
+    variantsData,
+    "price",
+    selectedSize?.id
+  ) as number) ?? 0;
 
-    return {
-      convertedPrice: price ?? 0,
-      discount: disc ?? 0,
-      stocks: stock ?? 0,
-    };
-  }, [variantsData, selectedSize?.id, getVariantData]);
+  const discount = (getVariantData(
+    variantsData,
+    "discount",
+    selectedSize?.id
+  ) as number) ?? 0;
 
-  const finalPrice = useMemo(() => {
-    if (!convertedPrice || !discount) return convertedPrice;
-    return Number(
-      (convertedPrice - convertedPrice * (discount / 100)).toFixed(2)
-    );
-  }, [convertedPrice, discount]);
+  const stocks = (getVariantData(
+    variantsData,
+    "stock",
+    selectedSize?.id
+  ) as number) ?? 0;
+
+  // Calculate final price
+  const finalPrice = !convertedPrice || !discount
+    ? convertedPrice
+    : Number((convertedPrice - convertedPrice * (discount / 100)).toFixed(2));
 
   const productslug = data.productslug;
 
@@ -260,57 +247,57 @@ export const ProductCard: React.FC<ProductCardProps> = ({
               onMouseEnter={() => setShowColorPicker(true)}
               onMouseLeave={() => setShowColorPicker(false)}
             >
-            {/* All color options - stacked with negative margins when collapsed */}
-            {availableColors.map((color, index, arr) => {
-              const isCollapsed = !showColorPicker;
-              const isSelected = selectedColor?.id === color.id;
-              
-              // First 3 are visible when collapsed, rest are invisible
-              const isFirstThree = index < 3;
-              
-              return (
-                <button
-                  key={color.id}
-                  type="button"
-                  onClick={() =>
-                    setSelectedColor({
-                      id: color.id,
-                      name: color.name,
-                      code: color.code,
-                    })
-                  }
-                  className={cn(
-                    "w-full aspect-square rounded-full relative shrink-0",
-                    "shadow-none outline-none border-none isolate hover:opacity-90",
-                    "transition-all duration-300",
-                    // Margin logic for stacking
-                    isCollapsed ? (
-                      index === 0 ? "" : 
-                      isFirstThree ? "-mb-[calc(100%+1px)]" :
-                      "-mb-[calc(100%+4px)] invisible [transition:margin_0.3s,visibility_0.2s]"
-                    ) : "mb-0 visible [transition:margin_0.3s,visibility_0.2s]"
-                  )}
-                  style={{
-                    backgroundColor: color.code,
-                    zIndex: `-${index}`,
-                  }}
-                  title={color.name}
-                  disabled={isCollapsed && !isFirstThree}
-                >
-                  {/* Selection indicator dot */}
-                  {isSelected && (
-                    <div
-                      className={cn(
-                        "w-1.5 h-1.5 aspect-square rounded-full absolute inset-0 m-auto",
-                        "bg-white/90 dark:bg-black/90 z-10 transition-all",
-                        showColorPicker ? "opacity-100" : "opacity-0"
-                      )}
-                    />
-                  )}
-                </button>
-              );
-            })}
-          </div>
+              {/* All color options - stacked with negative margins when collapsed */}
+              {availableColors.map((color, index, arr) => {
+                const isCollapsed = !showColorPicker;
+                const isSelected = selectedColor?.id === color.id;
+
+                // First 3 are visible when collapsed, rest are invisible
+                const isFirstThree = index < 3;
+
+                return (
+                  <button
+                    key={color.id}
+                    type="button"
+                    onClick={() =>
+                      setSelectedColor({
+                        id: color.id,
+                        name: color.name,
+                        code: color.code,
+                      })
+                    }
+                    className={cn(
+                      "w-full aspect-square rounded-full relative shrink-0",
+                      "shadow-none outline-none border-none isolate hover:opacity-90",
+                      "transition-all duration-300",
+                      // Margin logic for stacking
+                      isCollapsed ? (
+                        index === 0 ? "" :
+                          isFirstThree ? "-mb-[calc(100%+1px)]" :
+                            "-mb-[calc(100%+4px)] invisible [transition:margin_0.3s,visibility_0.2s]"
+                      ) : "mb-0 visible [transition:margin_0.3s,visibility_0.2s]"
+                    )}
+                    style={{
+                      backgroundColor: color.code,
+                      zIndex: `-${index}`,
+                    }}
+                    title={color.name}
+                    disabled={isCollapsed && !isFirstThree}
+                  >
+                    {/* Selection indicator dot */}
+                    {isSelected && (
+                      <div
+                        className={cn(
+                          "w-1.5 h-1.5 aspect-square rounded-full absolute inset-0 m-auto",
+                          "bg-white/90 dark:bg-black/90 z-10 transition-all",
+                          showColorPicker ? "opacity-100" : "opacity-0"
+                        )}
+                      />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
           )}
         </div>
 

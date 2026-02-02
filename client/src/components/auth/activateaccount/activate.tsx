@@ -4,13 +4,13 @@ import Cardwrapper from "../cardwrapper";
 import { Spinner } from "@/components/ui/spinner";
 import { usePathname } from 'next/navigation';
 import { useRouter } from 'next/navigation';
-import { ShieldCheck as GoShieldCheck, OctagonAlert as IoAlertOutline} from "lucide-react";
+import { ShieldCheck as GoShieldCheck, OctagonAlert as IoAlertOutline } from "lucide-react";
 
 
 const Activate = () => {
   const pathname = usePathname();
   const pathParts = pathname.split('/');
-  const uid = pathParts[2]; 
+  const uid = pathParts[2];
   const token = pathParts[3];
   const router = useRouter();
 
@@ -22,23 +22,23 @@ const Activate = () => {
     const verifyToken = async () => {
       try {
         setStatus('Decrypting token...');
-        const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_DOMAIN}/api/accounts/activate/${uid}/${token}/`, {
-          method: 'GET', 
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/accounts/activate/${uid}/${token}/`, {
+          method: 'GET',
           headers: {
             'Content-Type': 'application/json',
           },
         });
         if (!response.ok) {
           if (response.status === 400) {
-            setIcon(<IoAlertOutline/>)
+            setIcon(<IoAlertOutline />)
             setColor('text-destructive')
             setStatus('Invalid token.');
           } else if (response.status === 410) {
-            setIcon(<IoAlertOutline/>)
+            setIcon(<IoAlertOutline />)
             setColor('text-destructive')
             setStatus('Token expired.');
           } else {
-            setIcon(<IoAlertOutline/>)
+            setIcon(<IoAlertOutline />)
             setColor('text-destructive')
             setStatus('An error occurred.');
           }
@@ -46,7 +46,7 @@ const Activate = () => {
           setStatus('Confirming token...');
           const data = await response.json();
           if (data.success) {
-            setIcon(<GoShieldCheck/>)
+            setIcon(<GoShieldCheck />)
             setColor('text-emerald-500')
             setStatus('Token confirmed. Account activated!');
 
@@ -57,13 +57,13 @@ const Activate = () => {
               router.push('/auth/login');
             }, 4000);
           } else {
-            setIcon(<IoAlertOutline/>)
+            setIcon(<IoAlertOutline />)
             setColor('text-destructive')
             setStatus('Invalid token.');
           }
         }
       } catch (error) {
-        setIcon(<IoAlertOutline/>)
+        setIcon(<IoAlertOutline />)
         setColor('text-destructive')
         setStatus('An error occurred.');
       }
@@ -80,10 +80,10 @@ const Activate = () => {
       backButtonHref="/auth/login"
       showSocial={false}
       classNames={{
-        content:"flex items-center justify-center relative"
+        content: "flex items-center justify-center relative"
       }}
     >
-      <span className='w-full h-[150px] flex items-center justify-center'><Spinner/></span>
+      <span className='w-full h-[150px] flex items-center justify-center'><Spinner /></span>
       <div className={`text-center text-sm ${color} absolute bottom-0 animate-pulse flex items-center justify-center gap-x-2`}>{icon}{status}</div>
     </Cardwrapper>
   )

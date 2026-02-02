@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
       );
     }
     const { otp, uid } = validated.data;
-    const response = await fetch(`${process.env.BACKEND_URL}/api/accounts/reset_password/`, {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/accounts/reset_password/`, {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',
@@ -70,7 +70,7 @@ export async function PATCH(request: NextRequest) {
       );
     }
     const { password, uid, token } = validated.data;
-    const response = await fetch(`${process.env.BACKEND_URL}/api/accounts/reset_password/`, {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/accounts/reset_password/`, {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',

@@ -119,13 +119,7 @@ class DeliveryAddress(models.Model):
     is_deleted = models.BooleanField(default=False)
 
     class Meta:
-        constraints = [
-            models.UniqueConstraint(
-                fields=['user', 'default'],
-                condition=models.Q(default=True),
-                name='unique_default_address_per_user'
-            )
-        ]
+        pass
 
     def clean(self):
         if self.default:

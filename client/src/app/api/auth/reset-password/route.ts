@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
       );
     }
     const { email } = validated.data;
-    const response = await fetch(`${process.env.BACKEND_URL}/api/accounts/reset_password/`, {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/accounts/reset_password/`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
         }
       }
       return NextResponse.json(
-        { error: firstError || "Failed to Send Reset Password Email",  },
+        { error: firstError || "Failed to Send Reset Password Email", },
         { status: response.status }
       );
     }

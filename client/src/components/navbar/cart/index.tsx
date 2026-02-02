@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useMemo, useEffect } from "react";
+import { useState, useEffect } from "react";
 import {
   Sheet,
   SheetContent,
@@ -107,7 +107,7 @@ export default function Cart() {
     setIsSheetOpen(open);
   };
 
-  const getCartItemsWithDetails = useCallback(() => {
+  const getCartItemsWithDetails = () => {
     if (!data) return { availableItems: [], outOfStockItems: [] };
 
     const availableItems: CartItemWithDetails[] = [];
@@ -145,7 +145,7 @@ export default function Cart() {
     });
 
     return { availableItems, outOfStockItems };
-  }, [data, cartdata]);
+  };
 
   const getTotalPrice = (items: any[]) => {
     return items.reduce(
@@ -397,18 +397,15 @@ const CartItem = ({
   const { HandleIncreaseItems, HandledecreaseItems, loading } = useCart();
   const convertedPrice = data.variantDetails.price;
   const discount = data.variantDetails.discount;
-  const finalPrice = useMemo(() => {
-    return Number(
-      (convertedPrice - convertedPrice * (discount / 100)).toFixed(2)
-    );
-  }, [convertedPrice, discount]);
-
-  const truncateText = useCallback(
-    (text: string, maxLength: number): string => {
-      return text.length > maxLength ? `${text.slice(0, maxLength)}...` : text;
-    },
-    []
+  // Simple calculations - React 19 compiler handles optimization
+  const finalPrice = Number(
+    (convertedPrice - convertedPrice * (discount / 100)).toFixed(2)
   );
+
+  // Pure utility function - no need for useCallback
+  const truncateText = (text: string, maxLength: number): string => {
+    return text.length > maxLength ? `${text.slice(0, maxLength)}...` : text;
+  };
 
   return (
     <Card className="p-1 w-full rounded-md relative shadow-none bg-transparent h-[90px] bg-white dark:bg-neutral-900">

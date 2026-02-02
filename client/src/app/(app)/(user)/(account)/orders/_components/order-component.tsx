@@ -33,7 +33,8 @@ export const OrderComponent = ({
   hasMore: boolean;
   loading: boolean;
 }) => {
-  if (loading) {
+  // Only show full-page spinner on initial load (when no data exists yet)
+  if (loading && data.length === 0) {
     return (
       <div className="w-full h-[80vh] flex items-center justify-center">
         <Spinner size="sm" />
@@ -59,6 +60,11 @@ export const OrderComponent = ({
                 <OrderDetails order={order} />
               </AccordionItem>
             ))}
+            {loading && (
+              <div className="w-full flex justify-center py-4">
+                <Spinner size="sm" />
+              </div>
+            )}
           </InfiniteScroll>
         </Accordion>
       ) : (
@@ -136,13 +142,13 @@ const OrderDetails = ({ order }: { order: OrderData }) => {
                   ? "Complete Payment within 24 hrs"
                   : order.status === "successful" ||
                     order.status === "delivered"
-                  ? "Delivered Successfully"
-                  : order.status === "cancelled"
-                  ? "Cancelled"
-                  : `Estimated arrival: ${calculateEstimatedArrival(
-                      order?.created,
-                      7
-                    )}`}
+                    ? "Delivered Successfully"
+                    : order.status === "cancelled"
+                      ? "Cancelled"
+                      : `Estimated arrival: ${calculateEstimatedArrival(
+                        order?.created,
+                        7
+                      )}`}
               </p>
             </span>
             <RightIcon className="dark:fill-white/70 dark:stroke-white/70 stroke-neutral-700 hidden lg:flex" />

@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import { useAuthUser } from "./use-auth-user";
 
 interface DecryptResult<T = Record<string, unknown>> {
@@ -25,8 +25,8 @@ export function encryptData(data: Record<string, unknown>, key: string): string 
   return btoa(encrypted);
 }
 
-export function decriptData(encryptedData:  { data: string }, key: string): Record<string, unknown> {
-  const token = key.slice(0, 32);  
+export function decriptData(encryptedData: { data: string }, key: string): Record<string, unknown> {
+  const token = key.slice(0, 32);
   const decodedData = atob(encryptedData.data);
   const decrypted = xorEncryptDecrypt(decodedData, token);
   return JSON.parse(decrypted);
@@ -42,26 +42,26 @@ export function useDecryptedData<T = Record<string, unknown>>(
   const [error, setError] = useState<string | undefined>(undefined);
   const { accessToken } = useAuthUser();
 
-  const decrypt = useCallback(async () => {
-    if (encryptedData && accessToken) {
-      try {
-        const key = token ? token : accessToken.slice(0, 32);
-        const decodedData = atob(encryptedData.data);
-        const decrypted = xorEncryptDecrypt(decodedData, key);
-        setData(JSON.parse(decrypted) as T);
-        setError(undefined);
-      } catch (e) {
-        setError("Failed to decrypt data");
-        setData(null);
-      } finally {
-        setLoading(false);
-      }
-    }
-  }, [encryptedData, accessToken]);
-
   useEffect(() => {
+    const decrypt = async () => {
+      if (encryptedData && accessToken) {
+        try {
+          const key = token ? token : accessToken.slice(0, 32);
+          const decodedData = atob(encryptedData.data);
+          const decrypted = xorEncryptDecrypt(decodedData, key);
+          setData(JSON.parse(decrypted) as T);
+          setError(undefined);
+        } catch (e) {
+          setError("Failed to decrypt data");
+          setData(null);
+        } finally {
+          setLoading(false);
+        }
+      }
+    };
+
     decrypt();
-  }, [encryptedData, accessToken, loading]);
+  }, [encryptedData, accessToken, token]);
 
   return { data, error, loading };
 }

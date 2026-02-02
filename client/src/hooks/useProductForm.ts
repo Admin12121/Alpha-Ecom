@@ -1,6 +1,6 @@
-import { useForm, useFieldArray, UseFormSetValue, FieldErrors, FieldPath } from "react-hook-form";
+import { useForm, useFieldArray, FieldPath } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import { ProductFormValues, productFormSchema } from "@/schemas/product";
 
 export const useProductForm = () => {
@@ -30,23 +30,21 @@ export const useProductForm = () => {
     }
   }, [isMultiVariant, form]);
 
-  const toggleVariantType = useCallback(
-    (isMulti: boolean) => {
-      setIsMultiVariant(isMulti);
-      if (isMulti) {
-        if (fields.length === 0) {
-          append({ size: "", color_code: "", color_name: "", price: 0, stock: 0, discount: 1 });
-        }
-      } else {
-        remove(Array.from({ length: fields.length }, (_, i) => i));
+  // React 19 compiler handles memoization automatically
+  const toggleVariantType = (isMulti: boolean) => {
+    setIsMultiVariant(isMulti);
+    if (isMulti) {
+      if (fields.length === 0) {
+        append({ size: "", color_code: "", color_name: "", price: 0, stock: 0, discount: 1 });
       }
-    },
-    [fields.length, append, remove]
-  );
+    } else {
+      remove(Array.from({ length: fields.length }, (_, i) => i));
+    }
+  };
 
-  const handleBlur = useCallback((name: FieldPath<ProductFormValues>) => {
+  const handleBlur = (name: FieldPath<ProductFormValues>) => {
     form.trigger(name);
-  }, [form]);
+  };
 
   return {
     form,

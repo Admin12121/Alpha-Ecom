@@ -1,5 +1,4 @@
 import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
-import { get } from "http";
 
 const createHeaders = (
   token?: string,
@@ -32,7 +31,7 @@ const buildQueryParams = (
 export const userAuthapi = createApi({
   reducerPath: "userAuthapi",
   baseQuery: fetchBaseQuery({
-    baseUrl: `${process.env.NEXT_PUBLIC_BACKEND_DOMAIN}`,
+    baseUrl: `${process.env.NEXT_PUBLIC_API_URL}`,
   }),
   tagTypes: ["LoggedUser", "Cart"],
   endpoints: (builder) => ({

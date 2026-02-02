@@ -5,8 +5,6 @@ import React, {
   useContext,
   useState,
   useEffect,
-  useMemo,
-  useCallback,
 } from "react";
 import { getDecryptedProductList } from "@/lib/utils";
 import {
@@ -112,11 +110,10 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
-  const totalPieces = useMemo(() => {
-    return cartdata.reduce((acc, item) => {
-      return acc + (item.pcs ?? 0);
-    }, 0);
-  }, [cartdata]);
+  // Simple calculation - React 19 compiler optimizes this automatically
+  const totalPieces = cartdata.reduce((acc, item) => {
+    return acc + (item.pcs ?? 0);
+  }, 0);
 
   const updateProductList = (
     newProduct: CartProduct,

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect } from "react";
+import { useEffect } from "react";
 import {
   Accordion,
   AccordionContent,
@@ -123,42 +123,39 @@ const Shipping = () => {
     }
   }, [data, updateform]);
 
-  const onSubmit = useCallback(
-    async (data: AddressFormValues | udateAddressFormValues) => {
-      const actualData = { ...data };
-      if ("id" in actualData) {
-        const res = await updateShipping({ actualData, token: accessToken });
-        if (res.data) {
-          refetch();
-          toast.success("Address Updated", {
-            action: {
-              label: "X",
-              onClick: () => toast.dismiss(),
-            },
-          });
-        } else {
-          console.log(res.error);
-        }
-      } else {
-        const res = await addShipping({ actualData, token: accessToken });
-        if (res.data) {
-          refetch();
-          toast.success("New Shipping Address Added", {
-            action: {
-              label: "X",
-              onClick: () => toast.dismiss(),
-            },
-          });
-          form.reset();
-        } else {
-          console.log(res.error);
-        }
+  const onSubmit = async (data: AddressFormValues | udateAddressFormValues) => {
+    const actualData = { ...data };
+    if ("id" in actualData) {
+      const res = await updateShipping({ actualData, token: accessToken });
+      if (res.data) {
+        refetch();
+        toast.success("Address Updated", {
+          action: {
+            label: "X",
+            onClick: () => toast.dismiss(),
+          },
+        });
+      } else if (res.error) {
+        toast.error("Failed to update address");
       }
-    },
-    []
-  );
+    } else {
+      const res = await addShipping({ actualData, token: accessToken });
+      if (res.data) {
+        refetch();
+        toast.success("New Shipping Address Added", {
+          action: {
+            label: "X",
+            onClick: () => toast.dismiss(),
+          },
+        });
+        form.reset();
+      } else if (res.error) {
+        toast.error("Failed to add address");
+      }
+    }
+  };
 
-  const onDelete = useCallback(async (id: number) => {
+  const onDelete = async (id: number) => {
     const toastId = toast.loading("Deleting Shipping Address...", {
       position: "top-center",
     });
@@ -176,7 +173,7 @@ const Shipping = () => {
         position: "top-center",
       });
     }
-  }, []);
+  };
 
   return (
     <section className="w-full h-full pb-10 min-h-[calc(100dvh_-_145px)] flex items-center flex-col gap-2">
@@ -316,7 +313,7 @@ const Shipping = () => {
                 </span>
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
-                    <span className={cn(buttonVariants({variant:"outline", size:"icon"}),"absolute right-2")}>
+                    <span className={cn(buttonVariants({ variant: "outline", size: "icon" }), "absolute right-2")}>
                       <Trash className="w-4 h-4" />
                     </span>
                   </AlertDialogTrigger>

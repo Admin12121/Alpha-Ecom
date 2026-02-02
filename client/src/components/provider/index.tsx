@@ -8,7 +8,6 @@ import Spinner from "@/components/ui/spinner";
 import { Provider as ReduxProvider } from "react-redux";
 import { store, AppStore } from "@/lib/store/store";
 import { CartProvider } from "@/lib/cart-context";
-import { ReactQueryProvider } from "@/lib/store/react-query-provider";
 import { SessionProvider } from "next-auth/react";
 import { SiteTracker } from "@/components/global/site-tracker";
 
@@ -34,12 +33,10 @@ export const Provider = ({ children, session, ...props }: ThemeProviderProps & {
       />
       <SessionProvider session={session} refetchOnWindowFocus={false}>
         <ReduxProvider store={storeRef.current}>
-          <ReactQueryProvider>
-            <CartProvider>
-              <SiteTracker />
-              {children}
-            </CartProvider>
-          </ReactQueryProvider>
+          <CartProvider>
+            <SiteTracker />
+            {children}
+          </CartProvider>
         </ReduxProvider>
       </SessionProvider>
     </NextThemesProvider>

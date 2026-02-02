@@ -94,16 +94,6 @@ class ProductVariant(models.Model):
                 fields=['product', 'color_code', 'size'],
                 name='unique_product_color_size_variant',
             ),
-            models.UniqueConstraint(
-                fields=['product', 'size'],
-                condition=Q(color_code__isnull=True),
-                name='unique_product_size_when_color_null',
-            ),
-            models.UniqueConstraint(
-                fields=['product', 'color_code'],
-                condition=Q(size__isnull=True) | Q(size=''),
-                name='unique_product_color_when_size_null',
-            ),
         ]
         indexes = [
             models.Index(fields=['product', 'color_code']),
@@ -135,6 +125,15 @@ class ProductVariant(models.Model):
 
         if self.color_name:
             self.color_name = self.color_name.strip()
+
+        # Enforce uniqueness constraints manually since MySQL doesn't support conditional unique constraints
+        if self.color_code is None and self.size:
+            if ProductVariant.objects.filter(product=self.product, size=self.size, color_code__isnull=True).exclude(pk=self.pk).exists():
+                raise ValidationError("A variant with this size already exists for this product.")
+        
+        if self.size is None and self.color_code:
+            if ProductVariant.objects.filter(product=self.product, color_code=self.color_code, size__isnull=True).exclude(pk=self.pk).exists():
+                raise ValidationError("A variant with this color already exists for this product.")
 
     def save(self, *args, **kwargs):
         self.full_clean()

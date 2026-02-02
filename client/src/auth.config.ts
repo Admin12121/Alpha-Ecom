@@ -55,7 +55,7 @@ export default {
         }
         const { email, password } = ValidateFields.data;
         const response = await fetch(
-          `${process.env.BACKEND_URL}/api/accounts/users/login/`,
+          `${process.env.NEXT_PUBLIC_API_URL}/api/accounts/users/login/`,
           {
             method: "POST",
             headers: {
@@ -93,7 +93,7 @@ export default {
       }
       if (account?.provider !== "credentials") {
         const response = await fetch(
-          `${process.env.BACKEND_URL}/api/accounts/users/social_login/`,
+          `${process.env.NEXT_PUBLIC_API_URL}/api/accounts/users/social_login/`,
           {
             method: "POST",
             headers: {

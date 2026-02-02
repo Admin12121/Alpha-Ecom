@@ -25,7 +25,7 @@ const InfiniteScroll: React.FC<InfiniteScrollProps> = ({
         loadMore();
       }
     },
-    [loading, hasMore]
+    [loading, hasMore, loadMore]
   );
 
   useEffect(() => {
@@ -33,8 +33,8 @@ const InfiniteScroll: React.FC<InfiniteScrollProps> = ({
 
     observer.current = new IntersectionObserver(handleObserver, {
       root: null,
-      rootMargin: "100px",
-      threshold: 1.0,
+      rootMargin: "200px",
+      threshold: 0.1,
     });
 
     if (bottomRef.current) observer.current.observe(bottomRef.current);
@@ -47,7 +47,7 @@ const InfiniteScroll: React.FC<InfiniteScrollProps> = ({
   return (
     <div className={className}>
       {children}
-      <div ref={bottomRef} />
+      <div ref={bottomRef} style={{ height: "1px", width: "100%" }} />
     </div>
   );
 };

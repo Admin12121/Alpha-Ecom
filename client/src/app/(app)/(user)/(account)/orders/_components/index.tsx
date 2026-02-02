@@ -51,27 +51,33 @@ const Orders = () => {
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
   const [sales, setSales] = useState<Order[]>([]);
-  const { data, isLoading:loading } = useGetOrdersQuery(
+  const { data, isLoading: loading } = useGetOrdersQuery(
     { token: accessToken, status: status, page: page },
     { skip: !accessToken }
   );
 
   useEffect(() => {
     if (data) {
-      setSales((prev) =>
-        page === 1 ? data.results : [...(prev || []), ...data.results]
-      );
+      setSales((prev) => {
+        if (page === 1) {
+          return data.results;
+        }
+        // Prevent duplicates
+        const existingIds = new Set(prev?.map(s => s.id) || []);
+        const newItems = data.results.filter((s: Order) => !existingIds.has(s.id));
+        return [...(prev || []), ...newItems];
+      });
       setHasMore(Boolean(data.next));
     }
-  }, [data]);
+  }, [data, page]);
 
   const loadMore = useCallback(() => {
     if (hasMore && !loading) {
-      setPage(page + 1);
+      setPage((prev) => prev + 1);
     }
-  }, [hasMore, loading, page]);
+  }, [hasMore, loading]);
 
-  const switchTab = (value:string) => {
+  const switchTab = (value: string) => {
     setStatus(value);
     setSales([]);
     setPage(1);
@@ -103,19 +109,19 @@ const Orders = () => {
           </TabsTrigger>
         </TabsList>
         <TabsContent value="all" className="w-full h-full">
-          <OrderComponent data={sales} loadMore={loadMore} hasMore={hasMore} loading={loading}/>
+          <OrderComponent data={sales} loadMore={loadMore} hasMore={hasMore} loading={loading} />
         </TabsContent>
         <TabsContent value="onshipping" className="w-full h-full">
-          <OrderComponent data={sales} loadMore={loadMore} hasMore={hasMore} loading={loading}/>
+          <OrderComponent data={sales} loadMore={loadMore} hasMore={hasMore} loading={loading} />
         </TabsContent>
         <TabsContent value="arrived" className="w-full h-full">
-          <OrderComponent data={sales} loadMore={loadMore} hasMore={hasMore} loading={loading}/>
+          <OrderComponent data={sales} loadMore={loadMore} hasMore={hasMore} loading={loading} />
         </TabsContent>
         <TabsContent value="delivered" className="w-full h-full">
-          <OrderComponent data={sales} loadMore={loadMore} hasMore={hasMore} loading={loading}/>
+          <OrderComponent data={sales} loadMore={loadMore} hasMore={hasMore} loading={loading} />
         </TabsContent>
         <TabsContent value="canceled" className="w-full h-full">
-          <OrderComponent data={sales} loadMore={loadMore} hasMore={hasMore} loading={loading}/>
+          <OrderComponent data={sales} loadMore={loadMore} hasMore={hasMore} loading={loading} />
         </TabsContent>
       </Tabs>
     </section>

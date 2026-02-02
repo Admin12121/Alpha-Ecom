@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useProductsViewQuery } from "@/lib/store/Service/api";
 import { useSearchParams } from "next/navigation";
 import { Product } from "@/types/product";
@@ -33,21 +33,27 @@ const ProductPage = () => {
   );
 
   const [products, SetProducts] = useState<Product[] | null>([]);
-  useEffect(() => {
-    if (page === 1) {
-      SetProducts(data?.results);
-      setHasMore(data?.next ? true : false);
-    } else {
-      SetProducts((prev) => [...(prev || []), ...(data?.results || [])]);
-    }
-  }, [data]);
 
-  const loadMoreProducts = () => {
-    if (data?.next) {
-      setPage(page + 1);
-      setHasMore(data?.next ? true : false);
+  useEffect(() => {
+    if (data) {
+      if (page === 1) {
+        SetProducts(data.results);
+      } else {
+        SetProducts((prev) => {
+          const existingIds = new Set(prev?.map(p => p.id) || []);
+          const newItems = data.results.filter((p: Product) => !existingIds.has(p.id));
+          return [...(prev || []), ...newItems];
+        });
+      }
+      setHasMore(Boolean(data.next));
     }
-  };
+  }, [data, page]);
+
+  const loadMoreProducts = useCallback(() => {
+    if (hasMore && !isLoading) {
+      setPage((prev) => prev + 1);
+    }
+  }, [hasMore, isLoading]);
 
   return (
     <>

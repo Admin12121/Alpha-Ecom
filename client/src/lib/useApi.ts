@@ -1,11 +1,17 @@
-import { useState, useCallback } from 'react';
-import axios, { AxiosRequestConfig, AxiosResponse } from 'axios';
+import { useState } from 'react';
+
+type FetchConfig = {
+  url: string;
+  method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
+  headers?: Record<string, string>;
+  data?: unknown;
+};
 
 type UseApiResponse<T> = {
   data: T | null;
   error: string | null;
   isLoading: boolean;
-  fetchData: (config: AxiosRequestConfig) => Promise<void>;
+  fetchData: (config: FetchConfig) => Promise<void>;
 };
 
 function useApi<T>(): UseApiResponse<T> {
@@ -13,24 +19,38 @@ function useApi<T>(): UseApiResponse<T> {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  const fetchData = useCallback(async (config: AxiosRequestConfig) => {
+  const fetchData = async (config: FetchConfig) => {
     setIsLoading(true);
     setError('');
     setData(null);
 
     try {
-      const response: AxiosResponse<T> = await axios(config);
-      setData(response.data);
+      const response = await fetch(config.url, {
+        method: config.method || 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          ...config.headers,
+        },
+        body: config.data ? JSON.stringify(config.data) : undefined,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData?.error || `HTTP error! status: ${response.status}`);
+      }
+
+      const responseData: T = await response.json();
+      setData(responseData);
     } catch (err) {
-      if (axios.isAxiosError(err)) {
-        setError(err.response?.data?.error || 'An error occurred. Please try again.');
+      if (err instanceof Error) {
+        setError(err.message || 'An error occurred. Please try again.');
       } else {
         setError('An unexpected error occurred.');
       }
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  };
 
   return { data, error, isLoading, fetchData };
 }

@@ -41,8 +41,8 @@ export async function POST(request: NextRequest) {
     const token = authorizationHeader.replace("Bearer ", "");
     const key = token.slice(0, 32);
     const decryptedData = decryptData(encryptedData, key);
-    const {sales, paymentDetails} = decryptedData;
-    const response = await fetch(`${process.env.BACKEND_URL}/api/sales/sales/`, {
+    const { sales, paymentDetails } = decryptedData;
+    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/sales/sales/`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
         ...sales
       }),
     });
-    if(response.ok){
+    if (response.ok) {
       const validated = PaymentSchema.safeParse(paymentDetails);
       if (!validated.success) {
         const errors = validated.error.errors.map((err) => err.message);
@@ -89,10 +89,10 @@ export async function POST(request: NextRequest) {
       };
       const data = encryptData(formData, key);
       return NextResponse.json({ data }, { status: 201 });
-    }else{
+    } else {
       return NextResponse.json(
         { error: "Product Verification Failed" },
-        { status: response.status});
+        { status: response.status });
     }
   } catch (error: any) {
     return NextResponse.json(
@@ -116,7 +116,7 @@ export async function PATCH(request: NextRequest) {
     const token = authorizationHeader.replace("Bearer ", "");
     const key = token.slice(0, 32);
     const decryptedData = decryptData(encryptedData, key);
-    const response = await fetch(`${process.env.BACKEND_URL}/api/sales/sales/`, {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/sales/sales/`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -126,12 +126,12 @@ export async function PATCH(request: NextRequest) {
         ...decryptedData
       }),
     });
-    if(response.ok){
+    if (response.ok) {
       return NextResponse.json({ success: "Product Verified" }, { status: 201 });
-    }else{
+    } else {
       return NextResponse.json(
         { error: "Product Verification Failed" },
-        { status: response.status});
+        { status: response.status });
     }
   } catch (error: any) {
     return NextResponse.json(

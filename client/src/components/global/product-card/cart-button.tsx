@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import AddToCart from "../add-to-cart";
 import { cn } from "@/lib/utils";
@@ -92,12 +92,10 @@ const Cartbutton = ({
     };
   }, [display]);
 
-  // Memoize sorted variants to prevent recalculation on every render
-  const sortedVariants = useMemo(() => {
-    return Array.isArray(variantsData)
-      ? [...variantsData].sort((a, b) => Number(a.size) - Number(b.size))
-      : [];
-  }, [variantsData]);
+  // React 19 compiler handles optimization automatically
+  const sortedVariants = Array.isArray(variantsData)
+    ? [...variantsData].sort((a, b) => Number(a.size) - Number(b.size))
+    : [];
 
   return (
     <>
@@ -133,9 +131,11 @@ const Cartbutton = ({
           damping: 20,
           ease: "easeInOut",
         }}
-        {...{className:cn(
-          "absolute z-50 w-full left-0 rounded-lg backdrop-blur bg-zinc-200/60 dark:bg-[#121212db] p-2"
-        )}}
+        {...{
+          className: cn(
+            "absolute z-50 w-full left-0 rounded-lg backdrop-blur bg-zinc-200/60 dark:bg-[#121212db] p-2"
+          )
+        }}
       >
         {Array.isArray(variantsData) ? (
           <>
@@ -211,8 +211,8 @@ const Cartbutton = ({
                         className={cn(
                           "text-sm",
                           selectedSize &&
-                            (selectedSize?.discount ?? 0) > 0 &&
-                            "text-neutral-500 line-through"
+                          (selectedSize?.discount ?? 0) > 0 &&
+                          "text-neutral-500 line-through"
                         )}
                       >
                         {symbol} {convertedPrice}
@@ -222,7 +222,7 @@ const Cartbutton = ({
                 </CardBody>
               </Card>
             )}
-            {selectedSize?.id && stocks !== 0  && <AddToCart
+            {selectedSize?.id && stocks !== 0 && <AddToCart
               className="w-full mt-2"
               product={data}
               variant={selectedSize.id}
@@ -283,15 +283,15 @@ const NotifyForm = ({
     const toastId = toast.loading("Adding to waiting list...", {
       position: "top-center",
     });
-    
+
     const actualData = {
       ...formData,
       variant: selectedVariant,
       product: product,
     };
-    
+
     const res = await notifyuser({ actualData, token: accessToken });
-    
+
     if (res.data) {
       setDisplay(false);
       toast.success("Added to waiting list", {

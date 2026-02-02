@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
       );
     }
     const { username, email, password, first_name, last_name } = validated.data;
-    const response = await fetch(`${process.env.BACKEND_URL}/api/accounts/users/`, {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/accounts/users/`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
         }
       }
       return NextResponse.json(
-        { error: firstError || "Failed to create user",  },
+        { error: firstError || "Failed to create user", },
         { status: response.status }
       );
     }

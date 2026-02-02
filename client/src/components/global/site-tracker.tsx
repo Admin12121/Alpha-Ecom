@@ -2,8 +2,6 @@
 
 import { useEffect, useRef } from "react";
 import { useAuthUser } from "@/hooks/use-auth-user";
-import { useGetLoggedUserQuery, userAuthapi } from "@/lib/store/Service/api"; // Assuming api import
-import axios from "axios";
 
 const TRACKING_KEY = "nas_site_view_logged";
 
@@ -27,14 +25,15 @@ export function SiteTracker() {
                     deviceType = "Mobile";
                 }
 
-                // Get location (best effort free API)
+                // Get location (best effort free API) - using native fetch instead of axios
                 let locationData = { city: "Unknown", country: "Unknown" };
                 try {
-                    const geoRes = await axios.get("https://ipapi.co/json/");
-                    if (geoRes.data) {
+                    const geoRes = await fetch("https://ipapi.co/json/");
+                    if (geoRes.ok) {
+                        const geoData = await geoRes.json();
                         locationData = {
-                            city: geoRes.data.city || "Unknown",
-                            country: geoRes.data.country_name || "Unknown"
+                            city: geoData.city || "Unknown",
+                            country: geoData.country_name || "Unknown"
                         };
                     }
                 } catch (e) {
@@ -58,7 +57,7 @@ export function SiteTracker() {
                     headers["Authorization"] = `Bearer ${accessToken}`;
                 }
 
-                await fetch(`${process.env.NEXT_PUBLIC_BACKEND_DOMAIN}/api/accounts/site-view-logs/`, {
+                await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/accounts/site-view-logs/`, {
                     method: "POST",
                     headers: headers,
                     body: JSON.stringify(payload)

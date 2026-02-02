@@ -8,6 +8,7 @@ import {
 import { Links } from "./links";
 import { cn } from "@/lib/utils";
 import { siteConfig } from "@/config/site";
+import Header from "./_components/header";
 
 interface ProvidersProps {
   children: React.ReactNode;
@@ -29,6 +30,7 @@ const Providers = ({ children, collapsed, layout }: ProvidersProps) => {
             "rounded-xl overflow-y-auto",
           )}
         >
+          <Header />
           {children}
         </div>
       </main>

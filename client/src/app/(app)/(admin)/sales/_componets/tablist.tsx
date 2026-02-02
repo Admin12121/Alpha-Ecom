@@ -59,18 +59,24 @@ const Orders = ({ deferredSearch }: { deferredSearch?: string }) => {
 
   useEffect(() => {
     if (data) {
-      setSales((prev) =>
-        page === 1 ? data.results : [...(prev || []), ...data.results]
-      );
+      setSales((prev) => {
+        if (page === 1) {
+          return data.results;
+        }
+        // Prevent duplicates
+        const existingIds = new Set(prev?.map(s => s.id) || []);
+        const newItems = data.results.filter((s: Order) => !existingIds.has(s.id));
+        return [...(prev || []), ...newItems];
+      });
       setHasMore(Boolean(data.next));
     }
-  }, [data]);
+  }, [data, page]);
 
   const loadMore = useCallback(() => {
     if (hasMore && !loading) {
-      setPage(page + 1);
+      setPage((prev) => prev + 1);
     }
-  }, [hasMore, loading, page]);
+  }, [hasMore, loading]);
 
   const switchTab = (value: string) => {
     setStatus(value);
@@ -90,7 +96,7 @@ const Orders = ({ deferredSearch }: { deferredSearch?: string }) => {
       id: id,
       status: status,
     };
-    const res = await updateSale({ actualData, token:accessToken });
+    const res = await updateSale({ actualData, token: accessToken });
     if (res.data) {
       toast.success("Status updated successfully", {
         id: toastId,
@@ -137,7 +143,7 @@ const Orders = ({ deferredSearch }: { deferredSearch?: string }) => {
             loadMore={loadMore}
             hasMore={hasMore}
             loading={loading}
-            />
+          />
         </TabsContent>
         <TabsContent value="onshipping" className="w-full h-full">
           <OrderComponent
@@ -146,7 +152,7 @@ const Orders = ({ deferredSearch }: { deferredSearch?: string }) => {
             loadMore={loadMore}
             hasMore={hasMore}
             loading={loading}
-            />
+          />
         </TabsContent>
         <TabsContent value="arrived" className="w-full h-full">
           <OrderComponent
@@ -155,7 +161,7 @@ const Orders = ({ deferredSearch }: { deferredSearch?: string }) => {
             loadMore={loadMore}
             hasMore={hasMore}
             loading={loading}
-            />
+          />
         </TabsContent>
         <TabsContent value="delivered" className="w-full h-full">
           <OrderComponent
@@ -164,7 +170,7 @@ const Orders = ({ deferredSearch }: { deferredSearch?: string }) => {
             loadMore={loadMore}
             hasMore={hasMore}
             loading={loading}
-            />
+          />
         </TabsContent>
         <TabsContent value="canceled" className="w-full h-full">
           <OrderComponent
@@ -213,7 +219,8 @@ const OrderComponent = ({
   hasMore: boolean;
   loading: boolean;
 }) => {
-  if (loading) {
+  // Only show full-page spinner on initial load (when no data exists yet)
+  if (loading && data.length === 0) {
     return (
       <div className="w-full h-[80vh] flex items-center justify-center">
         <Spinner size="sm" />
@@ -236,9 +243,14 @@ const OrderComponent = ({
                 value={order.transactionuid}
                 className="rounded-lg shadow-none bg-white dark:bg-neutral-900 transition-all w-full"
               >
-                <OrderDetails order={order} handleUpdateSale={handleUpdateSale}/>
+                <OrderDetails order={order} handleUpdateSale={handleUpdateSale} />
               </AccordionItem>
             ))}
+            {loading && (
+              <div className="w-full flex justify-center py-4">
+                <Spinner size="sm" />
+              </div>
+            )}
           </InfiniteScroll>
         </Accordion>
       ) : (
@@ -254,7 +266,7 @@ const OrderComponent = ({
   );
 };
 
-const OrderDetails = ({ order, handleUpdateSale }: { order: Order,   handleUpdateSale: (id: number, status: string) => Promise<void>; }) => {
+const OrderDetails = ({ order, handleUpdateSale }: { order: Order, handleUpdateSale: (id: number, status: string) => Promise<void>; }) => {
   const router = useRouter();
   const truncateText = useCallback(
     (text: string, maxLength: number): string => {
@@ -312,7 +324,7 @@ const OrderDetails = ({ order, handleUpdateSale }: { order: Order,   handleUpdat
                   className={cn(
                     "cursor-pointer p-2 rounded-lg hover:bg-muted",
                     order.status === "cancelled" &&
-                      "cursor-not-allowed opacity-50"
+                    "cursor-not-allowed opacity-50"
                   )}
                 >
                   <EllipsisIcon size={16} aria-hidden="true" />
@@ -336,8 +348,8 @@ const OrderDetails = ({ order, handleUpdateSale }: { order: Order,   handleUpdat
                 const isInitialPhase = currentIndex <= 2;
                 const options = isInitialPhase
                   ? ["unpaid", "pending", "verified", "cancelled"].filter(
-                      (s) => s !== order.status
-                    )
+                    (s) => s !== order.status
+                  )
                   : statusFlow.slice(currentIndex + 1);
 
                 const getStatusLabel = (s: string) =>
@@ -373,13 +385,13 @@ const OrderDetails = ({ order, handleUpdateSale }: { order: Order,   handleUpdat
                   ? "Complete Payment within 24 hrs"
                   : order.status === "successful" ||
                     order.status === "delivered"
-                  ? "Delivered Successfully"
-                  : order.status === "cancelled"
-                  ? "Cancelled"
-                  : `Estimated arrival: ${calculateEstimatedArrival(
-                      order?.created,
-                      7
-                    )}`}
+                    ? "Delivered Successfully"
+                    : order.status === "cancelled"
+                      ? "Cancelled"
+                      : `Estimated arrival: ${calculateEstimatedArrival(
+                        order?.created,
+                        7
+                      )}`}
               </p>
             </span>
             <RightIcon className="dark:fill-white/70 dark:stroke-white/70 stroke-neutral-700 hidden lg:flex" />
