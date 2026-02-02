@@ -13,7 +13,7 @@ const { auth } = NextAuth(authConfig);
 
 export default auth((req, ctx) => {
   const { nextUrl } = req;
-  const isLoggedIn = !!req.auth;
+  const isLoggedIn = !!req.auth?.accessToken;
   const matchRoute = (routes: string[]): boolean =>
     routes.some((route) =>
       new RegExp(`^${route.replace(/\(.*\)/g, ".*")}$`).test(nextUrl.pathname)
@@ -33,6 +33,7 @@ export default auth((req, ctx) => {
     if (matchRoute(adminRoutes)) {
       const token = req.auth?.accessToken || "";
       const { role } = decodeJwt(token);
+
       if (role !== "Admin") {
         return NextResponse.redirect(new URL("/", req.url));
       }

@@ -10,7 +10,7 @@ export const useAuthUser = () => {
   return {
     user: session.data?.user,
     accessToken: session.data?.accessToken,
-    status: session.status === "authenticated",
+    status: session.status === "authenticated" && !!session.data?.accessToken,
     signOut: signOut,
     update: Update,
   };

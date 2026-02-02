@@ -67,19 +67,25 @@ const LandingPage = ({
 }: {
   userCookie: boolean;
 }) => {
-  const { data: layoutData } = useGetlayoutQuery({ layoutslug: "home" });
-  const siteConfig: SiteConfig = useMemo(() => layoutData?.config || {
-    components: {
-      products: { visible: false, title: "", subtitle: "" },
-      trendingProducts: { visible: false, title: "", subtitle: "" },
-      recentProducts: { visible: false, title: "", subtitle: "" },
-      recommendedProducts: { visible: false, title: "", subtitle: "" },
-      store: { visible: false, title: "", subtitle: "" },
-    },
-    slider: [],
-    events: [],
-    messages: { message: "", date: "" },
-  }, [layoutData]);
+  const { data: layoutData, isLoading: isLayoutLoading } = useGetlayoutQuery({
+    layoutslug: "home",
+  });
+  const siteConfig: SiteConfig = useMemo(
+    () =>
+      layoutData?.config || {
+        components: {
+          products: { visible: false, title: "", subtitle: "" },
+          trendingProducts: { visible: false, title: "", subtitle: "" },
+          recentProducts: { visible: false, title: "", subtitle: "" },
+          recommendedProducts: { visible: false, title: "", subtitle: "" },
+          store: { visible: false, title: "", subtitle: "" },
+        },
+        slider: [],
+        events: [],
+        messages: { message: "", date: "" },
+      },
+    [layoutData]
+  );
 
   const { data, isLoading: loading } = useProductsViewQuery({ page_size: 8 });
   const products: Product[] = data?.results || [];
@@ -107,6 +113,10 @@ const LandingPage = ({
       }
     }, 30);
   }, []);
+
+  if (isLayoutLoading) {
+    return <HomeSkeleton />;
+  }
 
   return (
     <div className="w-full h-full flex flex-col items-center p-3 md:p-5 gap-3">
@@ -185,7 +195,10 @@ const LandingPage = ({
                   siteConfig.events.length === 1 ? "md:h-full" : "md:h-1/2"
                 )}
               >
-                <div className={cn("absolute inset-0")} style={{ backgroundColor: event.color }}>
+                <div
+                  className={cn("absolute inset-0")}
+                  style={{ backgroundColor: event.color }}
+                >
                   <BadgePercent className="mt-1 ml-1" />
                   {event.title && (
                     <div className="p-4 absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/50">
@@ -293,4 +306,39 @@ const LandingPage = ({
     </div>
   );
 };
+
+const HomeSkeleton = () => {
+  return (
+    <div className="w-full h-full flex flex-col items-center p-3 md:p-5 gap-3">
+      {/* Top Banner Skeleton */}
+      <div className="w-full h-[45dvh] md:h-[50dvh] flex flex-col md:flex-row items-center justify-center gap-3">
+        <div className="w-full md:w-[75%] h-full rounded-3xl relative overflow-hidden">
+          <div className="absolute inset-0 bg-neutral-200/50 dark:bg-neutral-800/50 animate-pulse" />
+        </div>
+        <div className="w-full md:w-[25%] h-full gap-3 flex flex-row md:flex-col">
+          <div className="w-full h-full rounded-md relative overflow-hidden">
+            <div className="absolute inset-0 bg-neutral-200/50 dark:bg-neutral-800/50 animate-pulse" />
+          </div>
+          <div className="w-full h-full rounded-md relative overflow-hidden hidden md:block">
+            <div className="absolute inset-0 bg-neutral-200/50 dark:bg-neutral-800/50 animate-pulse" />
+          </div>
+        </div>
+      </div>
+
+      {/* Products Section Skeleton */}
+      <section className="w-full h-full flex flex-col items-center py-5 gap-8 min-h-[630px]">
+        <span className="text-center flex flex-col items-center gap-2">
+          <div className="h-10 w-48 bg-neutral-200/50 dark:bg-neutral-800/50 rounded-lg animate-pulse" />
+          <div className="h-5 w-64 bg-neutral-200/50 dark:bg-neutral-800/50 rounded-lg animate-pulse" />
+        </span>
+        <div className="w-full">
+          <ProductSkeleton loading={true} className="w-full">
+            <></>
+          </ProductSkeleton>
+        </div>
+      </section>
+    </div>
+  );
+};
+
 export default LandingPage;
