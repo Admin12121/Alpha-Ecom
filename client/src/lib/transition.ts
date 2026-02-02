@@ -1,7 +1,7 @@
 import CryptoJS from "crypto-js";
 import { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime";
 
-const secretKey = process.env.NEXTAUTH_SECRET as string;
+const secretKey = process.env.AUTH_SECRET as string;
 
 export const encryptData = (data: object, router: AppRouterInstance) => {
   const encurl = CryptoJS.AES.encrypt(

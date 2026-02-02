@@ -3,7 +3,7 @@ import { twMerge } from "tailwind-merge";
 import CryptoJS from "crypto-js";
 import { EventEmitter } from "events";
 
-const NEXTAUTH_SECRET = process.env.NEXTAUTH_SECRET!;
+const AUTH_SECRET = process.env.AUTH_SECRET!;
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -30,7 +30,7 @@ export const updateWishlist = (productId: string): void => {
   const encryptedWishlist = localStorage.getItem("wishlist");
   const wishlist = encryptedWishlist
     ? JSON.parse(
-      CryptoJS.AES.decrypt(encryptedWishlist, NEXTAUTH_SECRET).toString(
+      CryptoJS.AES.decrypt(encryptedWishlist, AUTH_SECRET).toString(
         CryptoJS.enc.Utf8
       )
     )
@@ -43,7 +43,7 @@ export const updateWishlist = (productId: string): void => {
   }
   const encryptedData = CryptoJS.AES.encrypt(
     JSON.stringify(wishlist),
-    NEXTAUTH_SECRET
+    AUTH_SECRET
   ).toString();
   localStorage.setItem("wishlist", encryptedData);
 };
@@ -52,7 +52,7 @@ export const isProductInWishlist = (productId: string): boolean => {
   const encryptedWishlist = localStorage.getItem("wishlist");
   if (!encryptedWishlist) return false;
   const wishlist = JSON.parse(
-    CryptoJS.AES.decrypt(encryptedWishlist, NEXTAUTH_SECRET).toString(
+    CryptoJS.AES.decrypt(encryptedWishlist, AUTH_SECRET).toString(
       CryptoJS.enc.Utf8
     )
   );
@@ -64,7 +64,7 @@ export const getWishlist = (): string[] => {
   const encryptedWishlist = localStorage.getItem("wishlist");
   if (!encryptedWishlist) return [];
   return JSON.parse(
-    CryptoJS.AES.decrypt(encryptedWishlist, NEXTAUTH_SECRET).toString(
+    CryptoJS.AES.decrypt(encryptedWishlist, AUTH_SECRET).toString(
       CryptoJS.enc.Utf8
     )
   );
@@ -99,7 +99,7 @@ export const getDecryptedProductList = (): CartProduct[] => {
     if (encryptedProductList) {
       try {
         const decrypted = JSON.parse(
-          CryptoJS.AES.decrypt(encryptedProductList, NEXTAUTH_SECRET).toString(
+          CryptoJS.AES.decrypt(encryptedProductList, AUTH_SECRET).toString(
             CryptoJS.enc.Utf8
           )
         );
