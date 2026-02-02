@@ -77,6 +77,7 @@ export interface Order {
   payment_json: any;
   created: string;
   updated_at: string;
+  expected_delivery_date?: string;
 }
 
 
@@ -247,9 +248,9 @@ const ProductCard = ({ data, token, refetch }: { data: Order, token: string, ref
                     ? "Delivered Successfully"
                     : data.status === "cancelled"
                       ? "Cancelled"
-                      : `Estimated arrival: ${calculateEstimatedArrival(
+                      : `Estimated arrival: ${data.expected_delivery_date ? formatDate(new Date(data.expected_delivery_date)) : calculateEstimatedArrival(
                         data?.created,
-                        7
+                        2
                       )}`}
               </p>
             </span>

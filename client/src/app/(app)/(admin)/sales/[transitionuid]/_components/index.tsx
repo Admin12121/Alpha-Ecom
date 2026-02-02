@@ -26,6 +26,10 @@ import { Button } from "@/components/ui/button";
 import { delay } from "@/lib/utils";
 import { toast } from "sonner";
 import { renderBadge } from "@/components/global/renderBadge";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { format } from "date-fns";
+import { CalendarIcon } from "lucide-react";
 
 interface Product {
   id: string;
@@ -70,12 +74,13 @@ export interface Order {
   payment_intent_id: any;
   created: string;
   updated_at: string;
+  expected_delivery_date?: string;
 }
 
 
 const OrderRetrieve = ({ transactionuid }: { transactionuid: string }) => {
   const { accessToken } = useAuthUser();
-  const { data: encryptedData, isLoading } = useSalesRetrieveQuery(
+  const { data: encryptedData, isLoading, refetch } = useSalesRetrieveQuery(
     { transactionuid, token: accessToken },
     { skip: !accessToken }
   );
@@ -85,13 +90,13 @@ const OrderRetrieve = ({ transactionuid }: { transactionuid: string }) => {
   return (
     <PageSkeleton loading={loading}>
       {orderData ? (
-        <ProductCard data={orderData} token={accessToken} />
+        <ProductCard data={orderData} token={accessToken} refetch={refetch} />
       ) : null}
     </PageSkeleton>
   );
 };
 
-const ProductCard = ({ data, token }: { data: Order; token?: string }) => {
+const ProductCard = ({ data, token, refetch }: { data: Order; token?: string, refetch?: any }) => {
   const [updateSale] = useUpdateSaleMutation();
 
   const productIds = useMemo(() => {
@@ -127,8 +132,8 @@ const ProductCard = ({ data, token }: { data: Order; token?: string }) => {
           variantDetails: variantDetails || {},
         };
       })
-        .filter(Boolean) as any[];
-      }, [productsTyped, data]);
+      .filter(Boolean) as any[];
+  }, [productsTyped, data]);
 
   const truncateText = useCallback(
     (text: string, maxLength: number): string => {
@@ -154,6 +159,29 @@ const ProductCard = ({ data, token }: { data: Order; token?: string }) => {
     return formatDate(createdDate);
   };
 
+  const handleDateSelect = async (date: Date | undefined) => {
+    if (!date) return;
+    const formattedDate = format(date, "yyyy-MM-dd");
+
+    const toastId = toast.loading("Updating delivery date...", { position: "top-center" });
+    const actualData = {
+      id: data.id,
+      expected_delivery_date: formattedDate
+    };
+
+    try {
+      const res = await updateSale({ actualData, token });
+      if (res.data) {
+        toast.success("Delivery date updated", { id: toastId, position: "top-center" });
+        if (refetch) refetch();
+      } else {
+        toast.error("Failed to update", { id: toastId, position: "top-center" });
+      }
+    } catch (e) {
+      toast.error("Something went wrong", { id: toastId, position: "top-center" });
+    }
+  };
+
   const handleUpdateSale = async (
     id: number,
     status: string,
@@ -175,6 +203,7 @@ const ProductCard = ({ data, token }: { data: Order; token?: string }) => {
         id: toastId,
         position: "top-center",
       });
+      if (refetch) refetch();
     } else {
       toast.error("Failed to update status", {
         id: toastId,
@@ -206,10 +235,10 @@ const ProductCard = ({ data, token }: { data: Order; token?: string }) => {
               </DropdownMenuTrigger>
               {(data.status == "pending" || data.status == "unpaid" || data.status == "verified") && (
                 <DropdownMenuContent>
-                  {data.status != "pending" && <DropdownMenuItem onClick={()=>handleUpdateSale(data.id, "pending")}>Pending</DropdownMenuItem>}
-                  {data.status != "unpaid" && <DropdownMenuItem onClick={()=>handleUpdateSale(data.id, "unpaid")}>UnPaid</DropdownMenuItem>}
-                  {data.status != "verified" && <DropdownMenuItem onClick={()=>handleUpdateSale(data.id, "verified")}>Verified</DropdownMenuItem>}
-                  <DropdownMenuItem onClick={()=>handleUpdateSale(data.id, "cancelled")}>Cancled</DropdownMenuItem>
+                  {data.status != "pending" && <DropdownMenuItem onClick={() => handleUpdateSale(data.id, "pending")}>Pending</DropdownMenuItem>}
+                  {data.status != "unpaid" && <DropdownMenuItem onClick={() => handleUpdateSale(data.id, "unpaid")}>UnPaid</DropdownMenuItem>}
+                  {data.status != "verified" && <DropdownMenuItem onClick={() => handleUpdateSale(data.id, "verified")}>Verified</DropdownMenuItem>}
+                  <DropdownMenuItem onClick={() => handleUpdateSale(data.id, "cancelled")}>Cancled</DropdownMenuItem>
                 </DropdownMenuContent>
               )}
             </DropdownMenu>
@@ -223,10 +252,25 @@ const ProductCard = ({ data, token }: { data: Order; token?: string }) => {
           </span>
           <span className="flex items-center justify-center">
             <LeftIcon className="dark:fill-white/70 dark:stroke-white/70 stroke-neutral-700 hidden lg:flex" />
-            <span className="p-2 border-1 rounded-xl">
+            <span className="p-2 border-1 rounded-xl flex items-center gap-2">
               <p className="text-sm text-neutral-500">
-                Estimated arrival: {calculateEstimatedArrival(data?.created, 7)}
+                Estimated arrival: {data.expected_delivery_date ? formatDate(new Date(data.expected_delivery_date)) : calculateEstimatedArrival(data?.created, 2)}
               </p>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-6 w-6">
+                    <CalendarIcon className="h-4 w-4" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0 z-[200]">
+                  <Calendar
+                    mode="single"
+                    selected={data.expected_delivery_date ? new Date(data.expected_delivery_date) : undefined}
+                    onSelect={handleDateSelect}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
             </span>
             <RightIcon className="dark:fill-white/70 dark:stroke-white/70 stroke-neutral-700 hidden lg:flex" />
           </span>

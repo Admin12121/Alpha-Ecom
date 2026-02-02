@@ -1,3 +1,4 @@
+from datetime import timedelta
 from django.db import transaction
 from django.db.models import F, Q
 from django.http import JsonResponse
@@ -13,6 +14,7 @@ from rest_framework.views import APIView
 
 from account.models import DeliveryAddress
 from account.renderers import UserRenderer
+from account.utils import send_email
 from product.models import Product, ProductVariant
 from server.utils.encryption import encrypt_response
 
@@ -123,7 +125,8 @@ class SalesViewSet(viewsets.ModelViewSet):
                 sub_total=data.get('sub_total'),
                 total_amt=data.get('total_amt'),
                 transactionuid=data.get('transactionuid'),
-                payment_method=data.get('payment_method')
+                payment_method=data.get('payment_method'),
+                expected_delivery_date=timezone.now().date() + timedelta(days=2)
             )
 
             for item in invoice_data:
@@ -149,6 +152,27 @@ class SalesViewSet(viewsets.ModelViewSet):
             context = get_invoice_details(data)
 
             return Response({"success": "Order created and invoice sent."}, status=status.HTTP_201_CREATED)
+
+    def perform_update(self, serializer):
+        instance = self.get_object()
+        old_date = instance.expected_delivery_date
+        updated_instance = serializer.save()
+        
+        new_date = updated_instance.expected_delivery_date
+        
+        if old_date and new_date and new_date > old_date:
+            try:
+                subject = f"Update on your order #{updated_instance.transactionuid}"
+                body = f"""
+                <p>Dear {updated_instance.costumer_name.first_name},</p>
+                <p>We apologize, but your order delivery has been delayed due to unforeseen circumstances.</p>
+                <p>The new expected delivery date is <strong>{new_date}</strong>.</p>
+                <p>We are sorry for the inconvenience.</p>
+                <p>Best regards,<br>Alpha Suits Team</p>
+                """
+                send_email(subject, updated_instance.costumer_name.email, body)
+            except Exception as e:
+                print(f"Failed to send email: {e}")
 
     @action(detail=False, methods=['get'], url_path='status/(?P<status_param>[^/.]+)')
     def filter_by_status(self, request, status_param=None):

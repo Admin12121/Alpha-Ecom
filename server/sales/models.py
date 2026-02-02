@@ -40,6 +40,7 @@ class Sales(models.Model):
     payment_json = models.TextField(null=True,blank=True)
     created = models.DateTimeField(auto_now_add=True,null=True, blank=True)
     updated_at = models.DateTimeField(auto_now=True,null=True, blank=True)
+    expected_delivery_date = models.DateField(null=True, blank=True)
 
 class Saled_Products(models.Model): 
    transition = models.ForeignKey(Sales, on_delete=models.CASCADE, null=True, blank=True,related_name='products')

@@ -255,9 +255,6 @@ export default function Cart() {
         {totalPieces > 0 ? (
           <div className="relative h-[95dvh]">
             <div className="py-2 flex flex-col gap-3 h-[90dvh] overflow-y-auto">
-              <div className="text-neutral-800 dark:text-zinc-400 text-sm bg-white dark:bg-neutral-900 p-3 rounded-md ">
-                Get Free Shipping on your first purchase
-              </div>
               <h1 className="text-2xl">
                 Your cart total is रु {convertedPrice}
               </h1>
