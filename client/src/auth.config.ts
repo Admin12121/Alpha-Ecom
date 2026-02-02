@@ -3,9 +3,7 @@ import Credentials from "next-auth/providers/credentials";
 import { LoginSchema } from "@/schemas";
 import type { JWT } from "next-auth/jwt";
 import type { Session } from "next-auth";
-import GitHub from "next-auth/providers/github";
 import Google from "next-auth/providers/google";
-import Instagram from "next-auth/providers/instagram";
 import { decodeJwt } from "jose";
 
 declare module "next-auth/jwt" {
@@ -39,10 +37,6 @@ export default {
     error: "/auth/login",
   },
   providers: [
-    GitHub({
-      clientId: process.env.GITHUB_ID,
-      clientSecret: process.env.GITHUB_SECRET,
-    }),
     Google({
       clientId: process.env.GOOGLE_ID,
       clientSecret: process.env.GOOGLE_SECRET,

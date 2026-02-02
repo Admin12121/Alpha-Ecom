@@ -3,7 +3,7 @@ import { twMerge } from "tailwind-merge";
 import CryptoJS from "crypto-js";
 import { EventEmitter } from "events";
 
-const NEXTAUTH_SECRET = process.env.NEXT_PUBLIC_JWT_SECRET!;
+const NEXTAUTH_SECRET = process.env.NEXTAUTH_SECRET!;
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
