@@ -1,6 +1,10 @@
 "use client";
 import React, { useState, useEffect, useCallback } from "react";
-import { useGetOrdersQuery, useUpdateSaleMutation } from "@/lib/store/Service/api";
+import {
+  useGetOrdersQuery,
+  useUpdateSaleMutation,
+  useDeleteSaleMutation,
+} from "@/lib/store/Service/api";
 import { useAuthUser } from "@/hooks/use-auth-user";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -8,7 +12,19 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 interface CartItem {
   id: number;
@@ -52,9 +68,14 @@ const Orders = ({ deferredSearch }: { deferredSearch?: string }) => {
   const [hasMore, setHasMore] = useState(false);
   const [sales, setSales] = useState<Order[]>([]);
   const [updateSale] = useUpdateSaleMutation();
-  const { data, isLoading: loading, refetch } = useGetOrdersQuery(
+  const [deleteSale] = useDeleteSaleMutation();
+  const {
+    data,
+    isLoading: loading,
+    refetch,
+  } = useGetOrdersQuery(
     { token: accessToken, status: status, page: page, search: deferredSearch },
-    { skip: !accessToken }
+    { skip: !accessToken },
   );
 
   useEffect(() => {
@@ -64,8 +85,10 @@ const Orders = ({ deferredSearch }: { deferredSearch?: string }) => {
           return data.results;
         }
         // Prevent duplicates
-        const existingIds = new Set(prev?.map(s => s.id) || []);
-        const newItems = data.results.filter((s: Order) => !existingIds.has(s.id));
+        const existingIds = new Set(prev?.map((s) => s.id) || []);
+        const newItems = data.results.filter(
+          (s: Order) => !existingIds.has(s.id),
+        );
         return [...(prev || []), ...newItems];
       });
       setHasMore(Boolean(data.next));
@@ -89,7 +112,7 @@ const Orders = ({ deferredSearch }: { deferredSearch?: string }) => {
       `Updating status for order ${id} to ${status}`,
       {
         position: "top-center",
-      }
+      },
     );
     await delay(500);
     const actualData = {
@@ -105,6 +128,26 @@ const Orders = ({ deferredSearch }: { deferredSearch?: string }) => {
       refetch();
     } else {
       toast.error("Failed to update status", {
+        id: toastId,
+        position: "top-center",
+      });
+    }
+  };
+
+  const handleDeleteSale = async (id: number) => {
+    const toastId = toast.loading("Deleting order...", {
+      position: "top-center",
+    });
+    await delay(500);
+    const res = await deleteSale({ id, token: accessToken });
+    if (res.data) {
+      toast.success("Order deleted successfully", {
+        id: toastId,
+        position: "top-center",
+      });
+      refetch();
+    } else {
+      toast.error("Failed to delete order", {
         id: toastId,
         position: "top-center",
       });
@@ -140,6 +183,7 @@ const Orders = ({ deferredSearch }: { deferredSearch?: string }) => {
           <OrderComponent
             data={sales}
             handleUpdateSale={handleUpdateSale}
+            handleDeleteSale={handleDeleteSale}
             loadMore={loadMore}
             hasMore={hasMore}
             loading={loading}
@@ -149,6 +193,7 @@ const Orders = ({ deferredSearch }: { deferredSearch?: string }) => {
           <OrderComponent
             data={sales}
             handleUpdateSale={handleUpdateSale}
+            handleDeleteSale={handleDeleteSale}
             loadMore={loadMore}
             hasMore={hasMore}
             loading={loading}
@@ -158,6 +203,7 @@ const Orders = ({ deferredSearch }: { deferredSearch?: string }) => {
           <OrderComponent
             data={sales}
             handleUpdateSale={handleUpdateSale}
+            handleDeleteSale={handleDeleteSale}
             loadMore={loadMore}
             hasMore={hasMore}
             loading={loading}
@@ -166,6 +212,7 @@ const Orders = ({ deferredSearch }: { deferredSearch?: string }) => {
         <TabsContent value="delivered" className="w-full h-full">
           <OrderComponent
             handleUpdateSale={handleUpdateSale}
+            handleDeleteSale={handleDeleteSale}
             data={sales}
             loadMore={loadMore}
             hasMore={hasMore}
@@ -176,6 +223,7 @@ const Orders = ({ deferredSearch }: { deferredSearch?: string }) => {
           <OrderComponent
             data={sales}
             handleUpdateSale={handleUpdateSale}
+            handleDeleteSale={handleDeleteSale}
             loadMore={loadMore}
             hasMore={hasMore}
             loading={loading}
@@ -209,12 +257,14 @@ import { toast } from "sonner";
 const OrderComponent = ({
   data,
   handleUpdateSale,
+  handleDeleteSale,
   loadMore,
   hasMore,
   loading,
 }: {
   data: Order[];
   handleUpdateSale: (id: number, status: string) => Promise<void>;
+  handleDeleteSale: (id: number) => Promise<void>;
   loadMore: any;
   hasMore: boolean;
   loading: boolean;
@@ -243,7 +293,11 @@ const OrderComponent = ({
                 value={order.transactionuid}
                 className="rounded-lg shadow-none bg-white dark:bg-neutral-900 transition-all w-full"
               >
-                <OrderDetails order={order} handleUpdateSale={handleUpdateSale} />
+                <OrderDetails
+                  order={order}
+                  handleUpdateSale={handleUpdateSale}
+                  handleDeleteSale={handleDeleteSale}
+                />
               </AccordionItem>
             ))}
             {loading && (
@@ -266,13 +320,21 @@ const OrderComponent = ({
   );
 };
 
-const OrderDetails = ({ order, handleUpdateSale }: { order: Order, handleUpdateSale: (id: number, status: string) => Promise<void>; }) => {
+const OrderDetails = ({
+  order,
+  handleUpdateSale,
+  handleDeleteSale,
+}: {
+  order: Order;
+  handleUpdateSale: (id: number, status: string) => Promise<void>;
+  handleDeleteSale: (id: number) => Promise<void>;
+}) => {
   const router = useRouter();
   const truncateText = useCallback(
     (text: string, maxLength: number): string => {
       return text.length > maxLength ? `${text.slice(0, maxLength)}...` : text;
     },
-    []
+    [],
   );
 
   const formatDate = (date: Date): string => {
@@ -285,14 +347,12 @@ const OrderDetails = ({ order, handleUpdateSale }: { order: Order, handleUpdateS
 
   const calculateEstimatedArrival = (
     created: string,
-    daysToAdd: number
+    daysToAdd: number,
   ): string => {
     const createdDate = new Date(created);
     createdDate.setDate(createdDate.getDate() + daysToAdd);
     return formatDate(createdDate);
   };
-
-
 
   return (
     <AccordionTrigger
@@ -316,59 +376,92 @@ const OrderDetails = ({ order, handleUpdateSale }: { order: Order, handleUpdateS
           </TooltipProvider>
           <div className="flex items-center gap-2 justify-center">
             {renderBadge(order.status)}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <span
-                  role="button"
-                  tabIndex={order.status === "cancelled" ? -1 : 0}
-                  className={cn(
-                    "cursor-pointer p-2 rounded-lg hover:bg-muted",
-                    order.status === "cancelled" &&
-                    "cursor-not-allowed opacity-50"
-                  )}
-                >
-                  <EllipsisIcon size={16} aria-hidden="true" />
-                </span>
-              </DropdownMenuTrigger>
-              {(() => {
-                const statusFlow = [
-                  "unpaid",
-                  "pending",
-                  "verified",
-                  "proceed",
-                  "packed",
-                  "delivered",
-                  "successful",
-                ];
+            <AlertDialog>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <span
+                    role="button"
+                    tabIndex={0}
+                    className="cursor-pointer p-2 rounded-lg hover:bg-muted"
+                  >
+                    <EllipsisIcon size={16} aria-hidden="true" />
+                  </span>
+                </DropdownMenuTrigger>
+                {(() => {
+                  const statusFlow = [
+                    "unpaid",
+                    "pending",
+                    "verified",
+                    "proceed",
+                    "packed",
+                    "delivered",
+                    "successful",
+                  ];
 
-                const currentIndex = statusFlow.indexOf(order.status);
-                if (["cancelled", "successful"].includes(order.status))
-                  return null;
+                  const isCancelledOrUnpaid = ["cancelled", "unpaid"].includes(
+                    order.status,
+                  );
+                  const currentIndex = statusFlow.indexOf(order.status);
 
-                const isInitialPhase = currentIndex <= 2;
-                const options = isInitialPhase
-                  ? ["unpaid", "pending", "verified", "cancelled"].filter(
-                    (s) => s !== order.status
-                  )
-                  : statusFlow.slice(currentIndex + 1);
+                  if (order.status === "successful") return null;
 
-                const getStatusLabel = (s: string) =>
-                  s.charAt(0).toUpperCase() + s.slice(1);
+                  const isInitialPhase = currentIndex <= 2;
+                  const statusOptions = isCancelledOrUnpaid
+                    ? []
+                    : isInitialPhase
+                      ? ["unpaid", "pending", "verified", "cancelled"].filter(
+                          (s) => s !== order.status,
+                        )
+                      : statusFlow.slice(currentIndex + 1);
 
-                return (
-                  <DropdownMenuContent>
-                    {options.map((status) => (
-                      <DropdownMenuItem
-                        key={status}
-                        onClick={() => handleUpdateSale(order.id, status)}
-                      >
-                        {getStatusLabel(status)}
-                      </DropdownMenuItem>
-                    ))}
-                  </DropdownMenuContent>
-                );
-              })()}
-            </DropdownMenu>
+                  const getStatusLabel = (s: string) =>
+                    s.charAt(0).toUpperCase() + s.slice(1);
+
+                  return (
+                    <DropdownMenuContent>
+                      {statusOptions.map((status) => (
+                        <DropdownMenuItem
+                          key={status}
+                          onClick={() => handleUpdateSale(order.id, status)}
+                        >
+                          {getStatusLabel(status)}
+                        </DropdownMenuItem>
+                      ))}
+                      {isCancelledOrUnpaid && (
+                        <>
+                          {statusOptions.length > 0 && (
+                            <DropdownMenuSeparator />
+                          )}
+                          <AlertDialogTrigger asChild>
+                            <DropdownMenuItem className="text-red-600 dark:text-red-400 focus:text-red-600 dark:focus:text-red-400">
+                              Delete Order
+                            </DropdownMenuItem>
+                          </AlertDialogTrigger>
+                        </>
+                      )}
+                    </DropdownMenuContent>
+                  );
+                })()}
+              </DropdownMenu>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete this order?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will permanently delete order #{order.transactionuid}.
+                    This action cannot be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    className="bg-red-600 hover:bg-red-700"
+                    onClick={() => handleDeleteSale(order.id)}
+                  >
+                    Delete
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </div>
         </div>
         <div className="w-full p-2 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-2 rounded-lg">
@@ -384,14 +477,14 @@ const OrderDetails = ({ order, handleUpdateSale }: { order: Order, handleUpdateS
                 {order.status === "unpaid"
                   ? "Complete Payment within 24 hrs"
                   : order.status === "successful" ||
-                    order.status === "delivered"
+                      order.status === "delivered"
                     ? "Delivered Successfully"
                     : order.status === "cancelled"
                       ? "Cancelled"
                       : `Estimated arrival: ${calculateEstimatedArrival(
-                        order?.created,
-                        7
-                      )}`}
+                          order?.created,
+                          7,
+                        )}`}
               </p>
             </span>
             <RightIcon className="dark:fill-white/70 dark:stroke-white/70 stroke-neutral-700 hidden lg:flex" />
@@ -404,10 +497,7 @@ const OrderDetails = ({ order, handleUpdateSale }: { order: Order, handleUpdateS
           </span>
         </div>
         <div className="w-full p-2 flex justify-between items-center">
-          <p>
-            Total: रु {" "}
-            {order.total_amt}
-          </p>
+          <p>Total: रु {order.total_amt}</p>
           <span
             className={cn(buttonVariants({ variant: "default" }))}
             onClick={() => router.push(`/sales/${order.transactionuid}`)}

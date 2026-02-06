@@ -264,11 +264,14 @@ class ProductViewSet(viewsets.ModelViewSet):
         for index, image in enumerate(images_data):
             if image:
                 image_index = self.request.data.get(f"imageIndex[{index}]")
+                image_color = self.request.data.get(f"imageColor[{index}]")
                 image_data = {
                     "product": product.id,
                     "image": image,
                     "index": image_index,
                 }
+                if image_color:
+                    image_data["color"] = image_color
                 image_serializer = ProductImageSerializer(data=image_data)
                 image_serializer.is_valid(raise_exception=True)
                 image_serializer.save()

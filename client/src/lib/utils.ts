@@ -3,7 +3,10 @@ import { twMerge } from "tailwind-merge";
 import CryptoJS from "crypto-js";
 import { EventEmitter } from "events";
 
-const AUTH_SECRET = process.env.AUTH_SECRET!;
+const AUTH_SECRET =
+  process.env.NEXT_PUBLIC_AUTH_SECRET ||
+  process.env.AUTH_SECRET ||
+  "fallback-secret-key";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -30,10 +33,10 @@ export const updateWishlist = (productId: string): void => {
   const encryptedWishlist = localStorage.getItem("wishlist");
   const wishlist = encryptedWishlist
     ? JSON.parse(
-      CryptoJS.AES.decrypt(encryptedWishlist, AUTH_SECRET).toString(
-        CryptoJS.enc.Utf8
+        CryptoJS.AES.decrypt(encryptedWishlist, AUTH_SECRET).toString(
+          CryptoJS.enc.Utf8,
+        ),
       )
-    )
     : [];
   const productIndex = wishlist.indexOf(productId);
   if (productIndex > -1) {
@@ -43,7 +46,7 @@ export const updateWishlist = (productId: string): void => {
   }
   const encryptedData = CryptoJS.AES.encrypt(
     JSON.stringify(wishlist),
-    AUTH_SECRET
+    AUTH_SECRET,
   ).toString();
   localStorage.setItem("wishlist", encryptedData);
 };
@@ -53,8 +56,8 @@ export const isProductInWishlist = (productId: string): boolean => {
   if (!encryptedWishlist) return false;
   const wishlist = JSON.parse(
     CryptoJS.AES.decrypt(encryptedWishlist, AUTH_SECRET).toString(
-      CryptoJS.enc.Utf8
-    )
+      CryptoJS.enc.Utf8,
+    ),
   );
   return wishlist.includes(productId);
 };
@@ -65,8 +68,8 @@ export const getWishlist = (): string[] => {
   if (!encryptedWishlist) return [];
   return JSON.parse(
     CryptoJS.AES.decrypt(encryptedWishlist, AUTH_SECRET).toString(
-      CryptoJS.enc.Utf8
-    )
+      CryptoJS.enc.Utf8,
+    ),
   );
 };
 
@@ -100,8 +103,8 @@ export const getDecryptedProductList = (): CartProduct[] => {
       try {
         const decrypted = JSON.parse(
           CryptoJS.AES.decrypt(encryptedProductList, AUTH_SECRET).toString(
-            CryptoJS.enc.Utf8
-          )
+            CryptoJS.enc.Utf8,
+          ),
         );
         // Migrate to new format
         localStorage.setItem("cart-items", JSON.stringify(decrypted));
@@ -125,13 +128,16 @@ export function slugify(str: string) {
     .toLowerCase()
     .replace(/ /g, "-")
     .replace(/[^\w-]+/g, "")
-    .replace(/--+/g, "-")
+    .replace(/--+/g, "-");
 }
 
 export function unslugify(str: string) {
-  return str.replace(/-/g, " ")
+  return str.replace(/-/g, " ");
 }
 
 export const toPascalCase = (str: string): string =>
-  str.replace(/(\w)(\w*)/g, (_: string, first: string, rest: string) => first.toUpperCase() + rest.toLowerCase());
-
+  str.replace(
+    /(\w)(\w*)/g,
+    (_: string, first: string, rest: string) =>
+      first.toUpperCase() + rest.toLowerCase(),
+  );

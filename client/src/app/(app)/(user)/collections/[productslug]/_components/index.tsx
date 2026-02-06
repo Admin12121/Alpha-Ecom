@@ -1,6 +1,6 @@
 "use client";
 import dynamic from "next/dynamic";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   useProductsViewQuery,
   useRecommendedProductsViewQuery,
@@ -8,13 +8,20 @@ import {
 import ImageContainer from "./image";
 import Spinner from "@/components/ui/spinner";
 import { useAuthUser } from "@/hooks/use-auth-user";
-import Reviewcards, {Review} from "./review-card";
+import Reviewcards, { Review } from "./review-card";
 
-const Sidebar = dynamic(() => import("./sidebar"), { ssr: false, loading:()=> <div className="flex items-center justify-center h-full min-h-96"><Spinner size="sm"/></div>});
+const Sidebar = dynamic(() => import("./sidebar"), {
+  ssr: false,
+  loading: () => (
+    <div className="flex items-center justify-center h-full min-h-96">
+      <Spinner size="sm" />
+    </div>
+  ),
+});
 const ProductNotFound = dynamic(() => import("./not-found"), { ssr: false });
 const FeatureProduct = dynamic(
   () => import("@/components/global/feature-product"),
-  { ssr: false }
+  { ssr: false },
 );
 
 interface Image {
@@ -75,8 +82,13 @@ const ProductObject = ({ productslug }: { productslug: string }) => {
   return (
     <main>
       <ProductSection product={product} />
-      {product.reviews  &&  product.reviews.length > 0 && <ReviewsSection product_name={product.product_name} reviews={product.reviews}/>}
-      <RecommendedProducts product_id={product!.id} className="mb-14"/>
+      {product.reviews && product.reviews.length > 0 && (
+        <ReviewsSection
+          product_name={product.product_name}
+          reviews={product.reviews}
+        />
+      )}
+      <RecommendedProducts product_id={product!.id} className="mb-14" />
     </main>
   );
 };
@@ -87,27 +99,58 @@ const LoadingSection = () => (
   </section>
 );
 
-const ProductSection = ({ product }: { product: Product }) => (
-  <section className="min-w-[100dvw] justify-center items-center flex">
-    <div className="post-section !pb-2 text-gray-900 grid container mmd:grid-cols-6  gap-4 p-2 md:p-5 pt-0 max-w-[95rem]">
-      <div className="PostCon col-span-7 mmd:col-span-4">
-        <div className="flex flex-col">
-          <div className="postWrapper flex mmd:flex-wrap max-mmd:flex-col gap-3">
-            {product && product.images && <ImageContainer images={product.images} />}
+const ProductSection = ({ product }: { product: Product }) => {
+  const [selectedColor, setSelectedColor] = useState<{
+    code: string;
+    name: string;
+  } | null>(null);
+
+  // Filter images by selected color; fall back to all images if none match
+  const filteredImages = useMemo(() => {
+    if (!product.images) return [];
+    if (!selectedColor) return product.images;
+    const colorImages = product.images.filter(
+      (img: any) => img.color === selectedColor.code,
+    );
+    // If no images are tagged with this color, show all images
+    return colorImages.length > 0 ? colorImages : product.images;
+  }, [product.images, selectedColor]);
+
+  return (
+    <section className="min-w-[100dvw] justify-center items-center flex">
+      <div className="post-section !pb-2 text-gray-900 grid container mmd:grid-cols-6  gap-4 p-2 md:p-5 pt-0 max-w-[95rem]">
+        <div className="PostCon col-span-7 mmd:col-span-4">
+          <div className="flex flex-col">
+            <div className="postWrapper flex mmd:flex-wrap max-mmd:flex-col gap-3">
+              {product && product.images && (
+                <ImageContainer images={filteredImages} />
+              )}
+            </div>
           </div>
         </div>
+        <div className="sidebarWraper w-full col-span-7 mmd:col-span-2">
+          <Sidebar
+            products={product}
+            selectedColor={selectedColor}
+            onColorChange={setSelectedColor}
+          />
+        </div>
       </div>
-      <div className="sidebarWraper w-full col-span-7 mmd:col-span-2">
-        <Sidebar products={product} />
-      </div>
-    </div>
-  </section>
-);
+    </section>
+  );
+};
 
-const ReviewsSection = ({ product_name, reviews }: { product_name: string, reviews:Review[] }) => {
-  const randomHeader = Math.random() > 0.5 
-    ? "What people are saying" 
-    : `What people say about ${product_name}`;
+const ReviewsSection = ({
+  product_name,
+  reviews,
+}: {
+  product_name: string;
+  reviews: Review[];
+}) => {
+  const randomHeader =
+    Math.random() > 0.5
+      ? "What people are saying"
+      : `What people say about ${product_name}`;
 
   return (
     <section className="w-full h-full py-10 flex overflow-hidden flex-col items-center justify-center">
@@ -116,21 +159,24 @@ const ReviewsSection = ({ product_name, reviews }: { product_name: string, revie
       </h1>
       <p className="text-lg">Don&apos;t just take our word for it.</p>
       <div className="flex flex-wrap gap-4 pt-10 items-center justify-center">
-        <Reviewcards reviewData={reviews}/>
+        <Reviewcards reviewData={reviews} />
       </div>
     </section>
   );
 };
 
-
-export const RecommendedProducts = ({ product_id, className }: { product_id: number, className:string }) => {
+export const RecommendedProducts = ({
+  product_id,
+  className,
+}: {
+  product_id: number;
+  className: string;
+}) => {
   const { accessToken } = useAuthUser();
-  const { data, isLoading } = useRecommendedProductsViewQuery(
-    {
-      product_id,
-      token: accessToken,
-    }
-  );
+  const { data, isLoading } = useRecommendedProductsViewQuery({
+    product_id,
+    token: accessToken,
+  });
   const [products, setProducts] = useState<Product[]>([]);
   useEffect(() => {
     if (data) {

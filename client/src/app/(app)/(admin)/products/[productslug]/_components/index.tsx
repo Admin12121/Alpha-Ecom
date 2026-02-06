@@ -1,6 +1,13 @@
 "use client";
 
-import React, { useState, useRef, DragEvent, useEffect, useMemo } from "react";
+import React, {
+  useState,
+  useRef,
+  useCallback,
+  DragEvent,
+  useEffect,
+  useMemo,
+} from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 
 import {
@@ -25,7 +32,7 @@ import {
 } from "@/components/ui/alert-dialog";
 
 import { toast } from "sonner";
-import { ChevronDown, Trash as DeleteIcon, Settings } from "lucide-react";
+import { ChevronDown, Trash as DeleteIcon } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
@@ -78,7 +85,7 @@ const schema = z
         price: z.number().positive("Price must be positive"),
         stock: z.number().int().nonnegative("Stock must be non-negative"),
         discount: z.number().min(0).max(100).optional().nullable(),
-      })
+      }),
     ),
   })
   .superRefine((data, ctx) => {
@@ -131,6 +138,12 @@ interface FormValues {
 interface ImageData {
   id: string | null;
   src: string;
+  color?: string | null;
+}
+
+interface AvailableColor {
+  code: string;
+  name: string;
 }
 
 const ProductPage = ({ productslug }: { productslug: string }) => {
@@ -145,7 +158,7 @@ const ProductPage = ({ productslug }: { productslug: string }) => {
   const { data } = useCategoryViewQuery({});
   const { data: productData, refetch } = useProductsViewQuery(
     { productslug, token: accessToken },
-    { skip: !productslug }
+    { skip: !productslug },
   );
   const [updateProduct] = useProductsUpdateMutation();
   const [deleteVariant] = useVariantDeleteMutation();
@@ -229,7 +242,7 @@ const ProductPage = ({ productslug }: { productslug: string }) => {
         reader.readAsDataURL(file);
       } else {
         toast.success(
-          "Invalid File Format. Please upload a PNG image with a maximum size of 10MB."
+          "Invalid File Format. Please upload a PNG image with a maximum size of 10MB.",
         );
       }
     });
@@ -290,20 +303,26 @@ const ProductPage = ({ productslug }: { productslug: string }) => {
       cleanedData.variants?.forEach((variant, index) => {
         formData.append(`variants[${index}][id]`, variant.id || "");
         formData.append(`variants[${index}][size]`, variant.size || "");
-        formData.append(`variants[${index}][color_code]`, variant.color_code || "");
-        formData.append(`variants[${index}][color_name]`, variant.color_name || "");
+        formData.append(
+          `variants[${index}][color_code]`,
+          variant.color_code || "",
+        );
+        formData.append(
+          `variants[${index}][color_name]`,
+          variant.color_name || "",
+        );
         formData.append(
           `variants[${index}][price]`,
-          variant.price?.toString() || "0"
+          variant.price?.toString() || "0",
         );
         formData.append(
           `variants[${index}][stock]`,
-          variant.stock?.toString() || "0"
+          variant.stock?.toString() || "0",
         );
         if (variant.discount !== undefined) {
           formData.append(
             `variants[${index}][discount]`,
-            variant.discount.toString()
+            variant.discount.toString(),
           );
         }
       });
@@ -386,10 +405,30 @@ const ProductPage = ({ productslug }: { productslug: string }) => {
 
   const selectedCategory = watch("category");
 
+  // Extract unique colors from variants for image tagging
+  const watchedVariants = watch("variants");
+  const variantsColorKey = JSON.stringify(
+    (watchedVariants || []).map((v: any) => [v?.color_code, v?.color_name]),
+  );
+  const availableColors: AvailableColor[] = useMemo(() => {
+    if (!watchedVariants || !Array.isArray(watchedVariants)) return [];
+    const colorMap = new Map<string, AvailableColor>();
+    watchedVariants.forEach((v: any) => {
+      if (v?.color_code && v?.color_name) {
+        colorMap.set(v.color_code, { code: v.color_code, name: v.color_name });
+      }
+    });
+    return Array.from(colorMap.values());
+  }, [variantsColorKey]);
+
   useEffect(() => {
     if (productData) {
       setImages(
-        productData.images.map((img: any) => ({ id: img.id, src: img.image }))
+        productData.images.map((img: any) => ({
+          id: img.id,
+          src: img.image,
+          color: img.color || null,
+        })),
       );
       if (Array.isArray(productData.variants)) {
         setIsMultiVariant(true);
@@ -420,10 +459,48 @@ const ProductPage = ({ productslug }: { productslug: string }) => {
 
   const [open, setOpen] = useState<boolean>(false);
   const [cat, setCat] = useState<boolean>(false);
+
+  const onFormError = useCallback((formErrors: any) => {
+    console.error("Form validation errors:", formErrors);
+    const messages: string[] = [];
+    if (formErrors.id) messages.push(`ID: ${formErrors.id.message}`);
+    if (formErrors.productName)
+      messages.push(`Name: ${formErrors.productName.message}`);
+    if (formErrors.description)
+      messages.push(`Description: ${formErrors.description.message}`);
+    if (formErrors.category)
+      messages.push(`Category: ${formErrors.category.message}`);
+    if (formErrors.basePrice)
+      messages.push(`Price: ${formErrors.basePrice.message}`);
+    if (formErrors.stock) messages.push(`Stock: ${formErrors.stock.message}`);
+    if (formErrors.variants) {
+      if (formErrors.variants.message) {
+        messages.push(`Variants: ${formErrors.variants.message}`);
+      } else if (Array.isArray(formErrors.variants)) {
+        formErrors.variants.forEach((v: any, i: number) => {
+          if (v) {
+            Object.entries(v).forEach(([key, val]: [string, any]) => {
+              if (val?.message)
+                messages.push(`Variant ${i + 1} ${key}: ${val.message}`);
+            });
+          }
+        });
+      }
+    }
+    toast.error(
+      messages.length > 0
+        ? messages.join(", ")
+        : "Please fix form errors before submitting",
+      {
+        position: "top-center",
+      },
+    );
+  }, []);
+
   return (
     <form
       className="flex flex-col gap-5 px-2 md:px-5 pb-5 w-full h-[90dvh]"
-      onSubmit={handleSubmit(onSubmit)}
+      onSubmit={handleSubmit(onSubmit, onFormError)}
     >
       <span className="md:absolute right-2 top-2 flex gap-2 ">
         <Button className="" type="submit">
@@ -505,8 +582,11 @@ const ProductPage = ({ productslug }: { productslug: string }) => {
                 className={`group bg-white w-full h-80 flex justify-center items-center p-0 custom-md:w-[50%] dark:bg-neutral-900 hover:dark:!bg-neutral-800 ${
                   isDragging && draggingIndex === 0 ? "dragging" : ""
                 }`}
+                onDrop={(e: any) => !images[0] && handleDrop(e, 0)}
+                onDragOver={(e: any) => !images[0] && handleDragOver(e, 0)}
+                onDragLeave={() => !images[0] && handleDragLeave()}
+                onClick={() => !images[0] && handleImageUpload(0)}
               >
-                <Settings className=" w-4 h-4 absolute right-1 top-1  hidden group-hover:flex transition duration-500" />
                 {loadingIndex === 0 ? (
                   <Spinner color="secondary" />
                 ) : images[0] ? (
@@ -515,6 +595,7 @@ const ProductPage = ({ productslug }: { productslug: string }) => {
                     token={accessToken}
                     product="h-80 w-full max-lg:h-full max-lg:w-full object-contain"
                     className=" w-4 h-4 absolute right-1 top-1  hidden group-hover:flex transition duration-500"
+                    availableColors={availableColors}
                   />
                 ) : (
                   "Click or Drop here"
@@ -543,6 +624,7 @@ const ProductPage = ({ productslug }: { productslug: string }) => {
                         images={images[index]}
                         token={accessToken}
                         className=" w-4 h-4 absolute right-1 top-1  hidden group-hover:flex transition duration-500"
+                        availableColors={availableColors}
                       />
                     ) : (
                       "+"
@@ -600,122 +682,133 @@ const ProductPage = ({ productslug }: { productslug: string }) => {
               </span>
             ) : (
               <span className="flex gap-5 flex-col">
-                {fields.map((variant, index) => (
-                  <div key={variant.id} className="flex gap-5 flex-col">
-                    <div className="flex gap-5 flex-col md:flex-row">
-                      <div className="w-full md:flex-1">
+                {fields.map((variant, index) => {
+                  const watchedColor = watch(`variants.${index}.color_code`);
+                  const watchedColorName = watch(
+                    `variants.${index}.color_name`,
+                  );
+                  return (
+                    <div key={variant.id} className="flex gap-5 flex-col">
+                      <div className="flex gap-5 flex-col md:flex-row">
+                        <div className="w-full md:flex-1">
+                          <GlobalInput
+                            label="Size (optional)"
+                            placeholder="e.g., M, L, 15cm"
+                            className="bg-white dark:bg-neutral-900 w-full"
+                            error={errors.variants?.[index]?.size?.message}
+                            {...register(`variants.${index}.size`, {
+                              onBlur: () =>
+                                handleBlur(`variants[${index}].size`),
+                            })}
+                          />
+                        </div>
+                        <div className="w-full md:flex-1">
+                          <ColorPickerField
+                            label="Color (optional)"
+                            value={
+                              (typeof watchedColor === "string" &&
+                                watchedColor) ||
+                              ""
+                            }
+                            colorName={
+                              (typeof watchedColorName === "string" &&
+                                watchedColorName) ||
+                              ""
+                            }
+                            onChange={(colorCode, colorName) => {
+                              setValue(
+                                `variants.${index}.color_code`,
+                                colorCode || "",
+                              );
+                              setValue(
+                                `variants.${index}.color_name`,
+                                colorName || "",
+                              );
+                            }}
+                            error={
+                              errors.variants?.[index]?.color_code?.message
+                            }
+                          />
+                        </div>
+                      </div>
+                      <div className="flex gap-5 flex-col md:flex-row">
                         <GlobalInput
-                          label="Size (optional)"
-                          placeholder="e.g., M, L, 15cm"
+                          label="Price"
+                          placeholder="Price"
                           className="bg-white dark:bg-neutral-900 w-full"
-                          error={errors.variants?.[index]?.size?.message}
-                          {...register(`variants.${index}.size`, {
-                            onBlur: () => handleBlur(`variants[${index}].size`),
+                          error={errors.variants?.[index]?.price?.message}
+                          {...register(`variants.${index}.price`, {
+                            valueAsNumber: true,
+                            onBlur: () =>
+                              handleBlur(`variants[${index}].price`),
                           })}
                         />
-                      </div>
-                      <div className="w-full md:flex-1">
-                        <ColorPickerField
-                          label="Color (optional)"
-                          value={
-                            (typeof variant.color_code === "string" &&
-                              variant.color_code) ||
-                            ""
-                          }
-                          colorName={
-                            (typeof variant.color_name === "string" &&
-                              variant.color_name) ||
-                            ""
-                          }
-                          onChange={(colorCode, colorName) => {
-                            setValue(
-                              `variants.${index}.color_code`,
-                              colorCode || ""
-                            );
-                            setValue(
-                              `variants.${index}.color_name`,
-                              colorName || ""
-                            );
-                          }}
-                          error={errors.variants?.[index]?.color_code?.message}
+                        <GlobalInput
+                          label="Stock"
+                          placeholder="Stock"
+                          className="bg-white dark:bg-neutral-900 w-full"
+                          error={errors.variants?.[index]?.stock?.message}
+                          {...register(`variants.${index}.stock`, {
+                            valueAsNumber: true,
+                            onBlur: () =>
+                              handleBlur(`variants[${index}].stock`),
+                          })}
                         />
+                        <GlobalInput
+                          label="Discount"
+                          placeholder="Discount"
+                          className="bg-white dark:bg-neutral-900 w-full"
+                          error={errors.variants?.[index]?.discount?.message}
+                          {...register(`variants.${index}.discount`, {
+                            valueAsNumber: true,
+                          })}
+                        />
+                        <span
+                          className={`flex items-end justify-end ${
+                            errors.variants?.[index] ? "self-center" : ""
+                          }`}
+                        >
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button
+                                type="button"
+                                variant="destructive"
+                                className="w-full md:w-auto p-2"
+                                disabled={fields.length === 1}
+                              >
+                                <DeleteIcon className="w-4 h-4" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>
+                                  Are you absolutely sure?
+                                </AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  This action cannot be undone. This will
+                                  permanently delete variant data and remove it
+                                  from our servers.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() => {
+                                    const variantId =
+                                      watch(`variants.${index}.id`) ?? "";
+                                    handleVariantDelete(variantId);
+                                  }}
+                                >
+                                  Continue
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </span>
                       </div>
                     </div>
-                    <div className="flex gap-5 flex-col md:flex-row">
-                      <GlobalInput
-                        label="Price"
-                        placeholder="Price"
-                        className="bg-white dark:bg-neutral-900 w-full"
-                        error={errors.variants?.[index]?.price?.message}
-                        {...register(`variants.${index}.price`, {
-                          valueAsNumber: true,
-                          onBlur: () => handleBlur(`variants[${index}].price`),
-                        })}
-                      />
-                      <GlobalInput
-                        label="Stock"
-                        placeholder="Stock"
-                        className="bg-white dark:bg-neutral-900 w-full"
-                        error={errors.variants?.[index]?.stock?.message}
-                        {...register(`variants.${index}.stock`, {
-                          valueAsNumber: true,
-                          onBlur: () => handleBlur(`variants[${index}].stock`),
-                        })}
-                      />
-                      <GlobalInput
-                        label="Discount"
-                        placeholder="Discount"
-                        className="bg-white dark:bg-neutral-900 w-full"
-                        error={errors.variants?.[index]?.discount?.message}
-                        {...register(`variants.${index}.discount`, {
-                          valueAsNumber: true,
-                        })}
-                      />
-                      <span
-                        className={`flex items-end justify-end ${
-                          errors.variants?.[index] ? "self-center" : ""
-                        }`}
-                      >
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button
-                              type="button"
-                              variant="destructive"
-                              className="w-full md:w-auto p-2"
-                              disabled={fields.length === 1}
-                            >
-                              <DeleteIcon className="w-4 h-4" />
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>
-                                Are you absolutely sure?
-                              </AlertDialogTitle>
-                              <AlertDialogDescription>
-                                This action cannot be undone. This will
-                                permanently delete variant data and remove it from
-                                our servers.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction
-                                onClick={() => {
-                                  const variantId =
-                                    watch(`variants.${index}.id`) ?? "";
-                                  handleVariantDelete(variantId);
-                                }}
-                              >
-                                Continue
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      </span>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
                 <Button
                   type="button"
                   variant="secondary"
@@ -752,14 +845,15 @@ const ProductPage = ({ productslug }: { productslug: string }) => {
                         className={cn(
                           "rounded-lg w-full justify-between dark:bg-neutral-900 px-3 font-normal outline-offset-0 hover:bg-background focus-visible:border-ring focus-visible:outline-[3px] focus-visible:outline-ring/20",
                           cat &&
-                            "ring-2 ring-offset-2 ring-offset-default-100 dark:ring-offset-black ring-neutral-700"
+                            "ring-2 ring-offset-2 ring-offset-default-100 dark:ring-offset-black ring-neutral-700",
                         )}
                       >
                         {!selectedCategory
                           ? "Select a Category"
                           : getcategory.find(
                               (cat) =>
-                                cat.id.toString() == selectedCategory.toString()
+                                cat.id.toString() ==
+                                selectedCategory.toString(),
                             )?.name}
                         <ChevronDown
                           size={16}

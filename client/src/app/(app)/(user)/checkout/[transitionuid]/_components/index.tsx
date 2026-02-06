@@ -59,9 +59,9 @@ type Action =
   | { type: "SET_CART_ITEMS_WITH_DETAILS"; payload: any[] }
   | { type: "SET_TOTAL_PRICE"; payload: { price: number; symbol: string } }
   | {
-    type: "SET_TOTAL_PRICE_AFTER_DISCOUNT";
-    payload: { price: number; symbol: string };
-  }
+      type: "SET_TOTAL_PRICE_AFTER_DISCOUNT";
+      payload: { price: number; symbol: string };
+    }
   | { type: "SET_SHIPPING"; payload: string };
 
 const initialState: State = {
@@ -125,18 +125,18 @@ const Checkout = ({ params }: { params: string }) => {
 
   const productIds = useMemo(
     () => Array.from(new Set(state.productData.map((item) => item.product))),
-    [state.productData]
+    [state.productData],
   );
 
   const { data: checkout_products, isLoading: productLoading } =
     useCheckout_productsQuery(
       { ids: productIds, token: accessToken },
-      { skip: productIds.length === 0 }
+      { skip: productIds.length === 0 },
     );
   type CheckoutProductsResponse = { results: any[] };
   const { data: products } = useDecryptedData(
     checkout_products,
-    productLoading
+    productLoading,
   );
   const productsResp = products as CheckoutProductsResponse | undefined;
 
@@ -149,7 +149,7 @@ const Checkout = ({ params }: { params: string }) => {
     return state.productData
       .map((cartItem) => {
         const product = productsResp.results.find(
-          (p: any) => p.id === cartItem.product
+          (p: any) => p.id === cartItem.product,
         );
         if (!product) return null;
 
@@ -177,12 +177,12 @@ const Checkout = ({ params }: { params: string }) => {
         const discount = item.variantDetails.discount;
         const pcs = item.pcs ?? 0;
         const finalPrice = Number(
-          (price - price * (discount / 100)).toFixed(2)
+          (price - price * (discount / 100)).toFixed(2),
         );
         acc.totalPrice += finalPrice * pcs;
         return acc;
       },
-      { totalPrice: 0 }
+      { totalPrice: 0 },
     );
   };
 
@@ -251,7 +251,7 @@ const Checkout = ({ params }: { params: string }) => {
     if (state.totalPrice.price > minPPrice) {
       const discountAmount = calculateDiscount(
         state.totalPrice.price,
-        res.data
+        res.data,
       );
       dispatch({ type: "SET_DISCOUNT", payload: discountAmount });
       applyDiscount(discountAmount);
@@ -337,8 +337,6 @@ const Checkout = ({ params }: { params: string }) => {
     tranuid,
   ]);
 
-
-
   return (
     <>
       <div className="flex h-full lg:h-[90vh]">
@@ -366,7 +364,7 @@ const Checkout = ({ params }: { params: string }) => {
                   <Input
                     className={cn(
                       "w-full bg-white dark:bg-neutral-950 rounded-md",
-                      errors.code && "!ring-red-500 !bg-red-500/10"
+                      errors.code && "!ring-red-500 !bg-red-500/10",
                     )}
                     placeholder="Enter your code"
                     disabled={state.redeemData || repayment}
@@ -465,11 +463,29 @@ const Checkout = ({ params }: { params: string }) => {
                       >
                         <g>
                           <path d="M259.206,167.014H0.004v91.472h259.202V167.014z M237.877,237.157H21.333v-48.813h216.544V237.157z" />
-                          <path d="M259.206,51.665H142.999v93.675h116.208V51.665z M237.877,124.011h-73.549V72.994h73.549V124.011z M116.212,51.665H0.004   v93.675h116.208V51.665z M94.883,124.011H21.333V72.994h73.549V124.011z M365.202,136.449h-47.095v72.887h119.632L365.202,136.449z    M338.131,156.473h18.75l32.682,32.84h-51.432V156.473z M0,350.51v1.711h57.536c-6.84,9.01-10.91,20.23-10.91,32.39   c0,29.624,24.1,53.725,53.72,53.725c29.63,0,53.729-24.1,53.729-24.1,53.729-53.725c0-12.16-4.07-23.38-10.91-32.39h188.579   c-6.84,9.01-10.91,20.23-10.91,32.39c0,29.624,24.1,53.725,53.72,53.725c29.619,0,53.719-24.1,53.719-53.725   c0-12.16-4.07-23.38-10.91-32.39H490V199.863L379.564,91.962h-99.43v184.001L0,275.961 M100.347,417.006   c-17.862,0-32.391-14.534-32.391-32.395c0-17.861,14.529-32.39,32.391-32.39c17.861,0,32.399,14.528,32.399,32.39   C132.746,402.472,118.208,417.006,100.347,417.006z M280.135,330.892H20.024v-34.904h260.111V330.892z M374.555,417.006   c-17.861,0-32.391-14.534-32.391-32.395c0-17.861,14.529-32.39,32.391-32.39c17.861,0,32.389,14.528,32.389,32.39   C406.945,402.472,392.417,417.006,374.555,417.006z M468.671,330.892H301.464v-217.6h68.081l99.126,94.259V330.892z" />
+                          <path d="M259.206,51.665H142.999v93.675h116.208V51.665z M237.877,124.011h-73.549V72.994h73.549V124.011z M116.212,51.665H0.004   v93.675h116.208V51.665z M94.883,124.011H21.333V72.994h73.549V124.011z M365.202,136.449h-47.095v72.887h119.632L365.202,136.449z    M338.131,156.473h18.75l32.682,32.84h-51.432V156.473z M0,350.51v1.711h57.536c-6.84,9.01-10.91,20.23-10.91,32.39   c0,29.624,24.1,53.725,53.72,53.725c29.63,0,53.729-24.1,53.729-53.725c0-12.16-4.07-23.38-10.91-32.39h188.579   c-6.84,9.01-10.91,20.23-10.91,32.39c0,29.624,24.1,53.725,53.72,53.725c29.619,0,53.719-24.1,53.719-53.725   c0-12.16-4.07-23.38-10.91-32.39H490V199.863L379.564,91.962h-99.43v184.001L0,275.961 M100.347,417.006   c-17.862,0-32.391-14.534-32.391-32.395c0-17.861,14.529-32.39,32.391-32.39c17.861,0,32.399,14.528,32.399,32.39   C132.746,402.472,118.208,417.006,100.347,417.006z M280.135,330.892H20.024v-34.904h260.111V330.892z M374.555,417.006   c-17.861,0-32.391-14.534-32.391-32.395c0-17.861,14.529-32.39,32.391-32.39c17.861,0,32.389,14.528,32.389,32.39   C406.945,402.472,392.417,417.006,374.555,417.006z M468.671,330.892H301.464v-217.6h68.081l99.126,94.259V330.892z" />
                         </g>
+                        <g></g>
+                        <g></g>
+                        <g></g>
+                        <g></g>
+                        <g></g>
+                        <g></g>
+                        <g></g>
+                        <g></g>
+                        <g></g>
+                        <g></g>
+                        <g></g>
+                        <g></g>
+                        <g></g>
+                        <g></g>
+                        <g></g>
                       </svg>
+
                       <p className="text-center dark:text-neutral-400">
-                        After clicking &ldquo;Place Order&rdquo;, your order will be processed and you can pay with cash upon delivery.
+                        After clicking &ldquo;Place Order&rdquo;, your order
+                        will be processed and you can pay with cash upon
+                        delivery.
                       </p>
                     </div>
                   </div>

@@ -53,7 +53,9 @@ export interface Product {
 }
 
 export interface Image {
+  id?: number;
   image: string;
+  color?: string | null;
 }
 
 export interface ProductColor {

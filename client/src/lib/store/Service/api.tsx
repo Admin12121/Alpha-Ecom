@@ -561,6 +561,13 @@ export const userAuthapi = createApi({
         headers: createHeaders(token),
       }),
     }),
+    deleteSale: builder.mutation({
+      query: ({ id, token }) => ({
+        url: `api/sales/sales/${id}/`,
+        method: "DELETE",
+        headers: createHeaders(token),
+      }),
+    }),
     salesRetrieve: builder.query({
       query: ({ transactionuid, token }) => ({
         url: `api/sales/sales/transaction/${transactionuid}/`,
@@ -770,8 +777,23 @@ export const userAuthapi = createApi({
     // Generate bill number (admin)
     generateBillNumber: builder.query({
       query: ({ token }) => ({
-        url: "api/booking/generate-bill/",
+        url: "api/bookings/generate-bill-number/",
         method: "GET",
+        headers: createHeaders(token),
+      }),
+    }),
+    deleteUser: builder.mutation({
+      query: ({ userId, token }) => ({
+        url: `api/accounts/admin-users/${userId}/`,
+        method: "DELETE",
+        headers: createHeaders(token),
+      }),
+    }),
+    updateUserState: builder.mutation({
+      query: ({ userId, state, token }) => ({
+        url: `api/accounts/admin-users/${userId}/update_state/`,
+        method: "PATCH",
+        body: { state },
         headers: createHeaders(token),
       }),
     }),
@@ -834,6 +856,7 @@ export const {
   useGetOrdersQuery,
   useGetStocksQuery,
   useUpdateSaleMutation,
+  useDeleteSaleMutation,
   useSalesRetrieveQuery,
   usePostnewsletterMutation,
   useGetnewsletterQuery,
@@ -856,4 +879,6 @@ export const {
   useGetBookingStatsQuery,
   useCustomerLookupQuery,
   useGenerateBillNumberQuery,
+  useDeleteUserMutation,
+  useUpdateUserStateMutation,
 } = userAuthapi;

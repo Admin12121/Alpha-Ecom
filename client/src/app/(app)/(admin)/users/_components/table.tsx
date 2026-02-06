@@ -1,5 +1,11 @@
 import React, { useEffect, useState } from "react";
 import { useRouter } from "nextjs-toploader/app";
+import { toast } from "sonner";
+
+import {
+  useDeleteUserMutation,
+  useUpdateUserStateMutation,
+} from "@/lib/store/Service/api";
 
 import {
   DropdownMenu as DropdownMenuNext,
@@ -140,6 +146,7 @@ export default function UserTable({
   page,
   setPage,
   exclude_by,
+  accessToken,
 }: {
   exclude_by: string;
   SetExcludeBy: any;
@@ -151,15 +158,16 @@ export default function UserTable({
   data: ApiResponse;
   setSearch: React.Dispatch<React.SetStateAction<string>>;
   dataperpage: React.Dispatch<React.SetStateAction<number | null>>;
+  accessToken: string;
 }) {
   const router = useRouter();
   const [filterValue, setFilterValue] = React.useState("");
   const [searchValue, setsearchValue] = React.useState("");
   const [selectedKeys, setSelectedKeys] = React.useState<Set<number>>(
-    new Set([])
+    new Set([]),
   );
   const [visibleColumns, setVisibleColumns] = React.useState<Set<string>>(
-    new Set(INITIAL_VISIBLE_COLUMNS)
+    new Set(INITIAL_VISIBLE_COLUMNS),
   );
   const [statusFilter, setStatusFilter] = React.useState<string>("all");
   const [rowsPerPage, setRowsPerPage] = React.useState(10);
@@ -171,6 +179,23 @@ export default function UserTable({
   const [totalUsers, setTotalUsers] = React.useState<number>(0);
   const pages = Math.ceil(totalUsers / rowsPerPage);
   const [DeleteModalId, setDeleteModalId] = React.useState<number | null>(null);
+  const [deleteModalUsername, setDeleteModalUsername] =
+    React.useState<string>("");
+  const [updateUserState] = useUpdateUserStateMutation();
+
+  const handleStateChange = async (userId: number, newState: string) => {
+    try {
+      const res = await updateUserState({
+        userId,
+        state: newState,
+        token: accessToken,
+      }).unwrap();
+      toast.success(res.message || `User state updated to ${newState}`);
+      refetch();
+    } catch (err: any) {
+      toast.error(err?.data?.error || "Failed to update user state");
+    }
+  };
 
   const handleColumnToggle = (columnUid: string) => {
     setVisibleColumns((prev) => {
@@ -294,8 +319,12 @@ export default function UserTable({
         case "state":
           return (
             <Chip
-              className={`capitalize border-none gap-1 text-default-600`}
-              variant={users.state ? "secondary" : "outline"}
+              className={`capitalize border-none gap-1 ${
+                users.state === "blocked"
+                  ? "text-red-500 bg-red-50 dark:bg-red-950/30"
+                  : "text-green-600 bg-green-50 dark:bg-green-950/30"
+              }`}
+              variant="secondary"
             >
               {users.state}
             </Chip>
@@ -324,7 +353,12 @@ export default function UserTable({
                   <DropdownMenuSub>
                     <DropdownMenuSubTrigger>State</DropdownMenuSubTrigger>
                     <DropdownMenuSubContent>
-                      <DropdownMenuRadioGroup value={users.state}>
+                      <DropdownMenuRadioGroup
+                        value={users.state}
+                        onValueChange={(value) =>
+                          handleStateChange(users.id, value)
+                        }
+                      >
                         {labels.map((label) => (
                           <DropdownMenuRadioItem
                             key={label.value}
@@ -337,7 +371,12 @@ export default function UserTable({
                     </DropdownMenuSubContent>
                   </DropdownMenuSub>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => setDeleteModalId(users.id)}>
+                  <DropdownMenuItem
+                    onClick={() => {
+                      setDeleteModalId(users.id);
+                      setDeleteModalUsername(users.username);
+                    }}
+                  >
                     Delete
                     <DropdownMenuShortcut>⌘⌫</DropdownMenuShortcut>
                   </DropdownMenuItem>
@@ -349,7 +388,7 @@ export default function UserTable({
           return cellValue;
       }
     },
-    [router]
+    [router],
   );
 
   const onRowsPerPageChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -481,14 +520,6 @@ export default function UserTable({
               </DropdownMenuContent>
             </DropdownMenuNext>
             <Button
-              variant="default"
-              onClick={() => router.push("/user/add-user")}
-              className="h-8 gap-2 px-2 lg:px-3 border-dashed font-normal text-xs"
-            >
-              <PlusCircledIcon className=" h-4 w-4" />
-              New User
-            </Button>
-            <Button
               size="sm"
               variant="secondary"
               color="default"
@@ -550,7 +581,7 @@ export default function UserTable({
                 className={cn(
                   page <= 1 || hasSearchFilter
                     ? "pointer-events-none opacity-50"
-                    : "cursor-pointer"
+                    : "cursor-pointer",
                 )}
               />
             </PaginationItem>
@@ -572,13 +603,13 @@ export default function UserTable({
                     className={cn(
                       hasSearchFilter
                         ? "pointer-events-none opacity-50"
-                        : "cursor-pointer"
+                        : "cursor-pointer",
                     )}
                   >
                     {pageNum}
                   </PaginationLink>
                 </PaginationItem>
-              )
+              ),
             )}
 
             <PaginationItem>
@@ -591,7 +622,7 @@ export default function UserTable({
                 className={cn(
                   page >= pages || hasSearchFilter
                     ? "pointer-events-none opacity-50"
-                    : "cursor-pointer"
+                    : "cursor-pointer",
                 )}
               />
             </PaginationItem>
@@ -638,7 +669,7 @@ export default function UserTable({
                     key={column.uid}
                     className={cn(
                       column.uid === "actions" ? "text-center" : "text-left",
-                      column.sortable ? "cursor-pointer select-none" : ""
+                      column.sortable ? "cursor-pointer select-none" : "",
                     )}
                     onClick={() => column.sortable && handleSort(column.uid)}
                   >
@@ -718,68 +749,118 @@ export default function UserTable({
         <DeleteModal
           DeleteModalId={DeleteModalId}
           setDeleteModalId={setDeleteModalId}
+          username={deleteModalUsername}
+          setDeleteModalUsername={setDeleteModalUsername}
+          accessToken={accessToken}
+          refetch={refetch}
         />
       )}
     </>
   );
 }
 
-const PROJECT_NAME = "Origin UI";
-
 const DeleteModal = ({
-  // DeleteModalId,
+  DeleteModalId,
   setDeleteModalId,
+  username,
+  setDeleteModalUsername,
+  accessToken,
+  refetch,
 }: {
   DeleteModalId: number;
   setDeleteModalId: React.Dispatch<React.SetStateAction<number | null>>;
+  username: string;
+  setDeleteModalUsername: React.Dispatch<React.SetStateAction<string>>;
+  accessToken: string;
+  refetch: () => void;
 }) => {
   const [inputValue, setInputValue] = useState("");
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteUser] = useDeleteUserMutation();
+
+  const handleDelete = async () => {
+    setIsDeleting(true);
+    try {
+      await deleteUser({ userId: DeleteModalId, token: accessToken }).unwrap();
+      toast.success("User deleted successfully");
+      setDeleteModalId(null);
+      setDeleteModalUsername("");
+      refetch();
+    } catch (err: any) {
+      toast.error(err?.data?.error || "Failed to delete user");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleClose = () => {
+    setDeleteModalId(null);
+    setDeleteModalUsername("");
+    setInputValue("");
+  };
 
   return (
-    <div className="fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:rounded-lg">
-      <div className="flex flex-col items-center gap-2">
-        <div
-          className="flex size-9 shrink-0 items-center justify-center rounded-full border"
-          aria-hidden="true"
-        >
-          <CircleAlertIcon className="opacity-80" size={16} />
-        </div>
-        <div className="flex flex-col space-y-1.5 text-center sm:text-left">
-          <h1 className="text-lg font-semibold leading-none tracking-tight sm:text-center">
-            Final confirmation
-          </h1>
-          <p className="text-sm text-muted-foreground sm:text-center">
-            This action cannot be undone. To confirm, please enter the user
-            name <span className="text-foreground">Origin UI</span>.
-          </p>
-        </div>
-      </div>
-
-      <form className="space-y-5">
-        <div className="*:not-first:mt-2">
-          <Label>Delete user</Label>
-          <Input
-            type="text"
-            className="!bg-muted"
-            placeholder="Type Origin UI to confirm"
-            value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
-          />
-        </div>
-        <div className="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2">
-          <Button type="button" variant="outline" className="flex-1" onClick={() => setDeleteModalId(null)}>
-            Cancel
-          </Button>
-
-          <Button
-            type="button"
-            className="flex-1"
-            disabled={inputValue !== PROJECT_NAME}
+    <>
+      <div className="fixed inset-0 z-40 bg-black/50" onClick={handleClose} />
+      <div className="fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg duration-200 sm:rounded-lg">
+        <div className="flex flex-col items-center gap-2">
+          <div
+            className="flex size-9 shrink-0 items-center justify-center rounded-full border border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-950/30"
+            aria-hidden="true"
           >
-            Delete
-          </Button>
+            <CircleAlertIcon className="text-red-500" size={16} />
+          </div>
+          <div className="flex flex-col space-y-1.5 text-center sm:text-left">
+            <h1 className="text-lg font-semibold leading-none tracking-tight sm:text-center">
+              Delete user
+            </h1>
+            <p className="text-sm text-muted-foreground sm:text-center">
+              This action cannot be undone. To confirm, please type the username{" "}
+              <span className="font-semibold text-foreground">{username}</span>.
+            </p>
+          </div>
         </div>
-      </form>
-    </div>
+
+        <form
+          className="space-y-5"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (inputValue === username) handleDelete();
+          }}
+        >
+          <div className="*:not-first:mt-2">
+            <Label>Confirm username</Label>
+            <Input
+              type="text"
+              className="!bg-muted"
+              placeholder={`Type ${username} to confirm`}
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
+              autoFocus
+            />
+          </div>
+          <div className="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2">
+            <Button
+              type="button"
+              variant="outline"
+              className="flex-1"
+              onClick={handleClose}
+              disabled={isDeleting}
+            >
+              Cancel
+            </Button>
+
+            <Button
+              type="submit"
+              variant="destructive"
+              className="flex-1"
+              disabled={inputValue !== username || isDeleting}
+            >
+              {isDeleting ? "Deleting..." : "Delete"}
+            </Button>
+          </div>
+        </form>
+      </div>
+    </>
   );
 };

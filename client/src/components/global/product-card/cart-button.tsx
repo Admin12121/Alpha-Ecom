@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import AddToCart from "../add-to-cart";
 import { cn } from "@/lib/utils";
@@ -17,18 +17,15 @@ import {
   useGetnotifyuserQuery,
 } from "@/lib/store/Service/api";
 import { useAuthUser } from "@/hooks/use-auth-user";
+
 const EmailSchema = z.object({
-  email: z.string().min(1, { message: "Email is required" }).email({ message: "Invalid email address" }),
+  email: z
+    .string()
+    .min(1, { message: "Email is required" })
+    .email({ message: "Invalid email address" }),
 });
 
 type EmailFormData = z.infer<typeof EmailSchema>;
-
-interface SelectedSize {
-  id: number;
-  size: string | null;
-  price?: number;
-  discount?: number;
-}
 
 interface SelectedColor {
   id: number;
@@ -40,13 +37,32 @@ interface CartbuttonProps {
   data: number;
   stocks: number;
   variantsData: VariantObject | VariantObject[];
-  selectedSize?: SelectedSize | null;
-  setSelectedSize?: (size: SelectedSize) => void;
+  selectedSize?: string | null;
+  setSelectedSize?: (size: string | null) => void;
   finalPrice: number;
   convertedPrice: number;
   symbol: string;
   selectedColor?: SelectedColor | null;
+  matchedVariant?: VariantObject | null;
 }
+
+const SIZE_ORDER = [
+  "XS",
+  "S",
+  "M",
+  "L",
+  "XL",
+  "XXL",
+  "2XL",
+  "3XL",
+  "4XL",
+  "5XL",
+];
+
+const getSizeOrder = (size: string) => {
+  const idx = SIZE_ORDER.indexOf(size.toUpperCase());
+  return idx === -1 ? 999 : idx;
+};
 
 export const getSizeCategory = (index: number) => {
   const sizeNames = [
@@ -70,6 +86,7 @@ const Cartbutton = ({
   setSelectedSize,
   finalPrice,
   selectedColor,
+  matchedVariant,
 }: CartbuttonProps) => {
   const [display, setDisplay] = useState<boolean>(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -92,10 +109,28 @@ const Cartbutton = ({
     };
   }, [display]);
 
-  // React 19 compiler handles optimization automatically
-  const sortedVariants = Array.isArray(variantsData)
-    ? [...variantsData].sort((a, b) => Number(a.size) - Number(b.size))
-    : [];
+  // Get unique sizes for the selected color (no duplicates)
+  const sizesForColor = useMemo(() => {
+    if (!Array.isArray(variantsData)) return [];
+    let filtered = variantsData;
+    if (selectedColor) {
+      filtered = variantsData.filter(
+        (v) => v.color_code === selectedColor.code,
+      );
+    }
+    const sizeSet = new Set<string>();
+    filtered.forEach((v) => {
+      if (v.size) sizeSet.add(v.size);
+    });
+    return Array.from(sizeSet).sort(
+      (a, b) => getSizeOrder(a) - getSizeOrder(b),
+    );
+  }, [variantsData, selectedColor]);
+
+  // The variant ID to use for cart operations
+  const variantId = matchedVariant?.id ?? null;
+  const variantStock = matchedVariant?.stock ?? stocks;
+  const variantDiscount = matchedVariant ? Number(matchedVariant.discount) : 0;
 
   return (
     <>
@@ -105,7 +140,7 @@ const Cartbutton = ({
           size="sm"
           className={cn(
             "h-[30px] flex justify-center items-center text-sm gap-2",
-            stocks === 0 && Array.isArray(variantsData) && "shadow-none"
+            stocks === 0 && Array.isArray(variantsData) && "shadow-none",
           )}
           onClick={() => setDisplay(true)}
         >
@@ -119,7 +154,7 @@ const Cartbutton = ({
           )}
         </Button>
       ) : (
-        selectedSize && <AddToCart product={data} variant={selectedSize.id} />
+        variantId && <AddToCart product={data} variant={variantId} />
       )}
       <motion.div
         ref={ref}
@@ -133,41 +168,32 @@ const Cartbutton = ({
         }}
         {...{
           className: cn(
-            "absolute z-50 w-full left-0 rounded-lg backdrop-blur bg-zinc-200/60 dark:bg-[#121212db] p-2"
-          )
+            "absolute z-50 w-full left-0 rounded-lg backdrop-blur bg-zinc-200/60 dark:bg-[#121212db] p-2",
+          ),
         }}
       >
         {Array.isArray(variantsData) ? (
           <>
             <span className="flex gap-3 flex-col">
               <p className="text-sm">Choose Statue Size</p>
-              <span className="flex gap-2 items-center">
-                {sortedVariants.map((variant, index) => (
+              <span className="flex gap-2 items-center flex-wrap">
+                {sizesForColor.map((size) => (
                   <Button
-                    key={variant.id}
-                    variant={
-                      selectedSize?.id === variant.id ? "active" : "secondary"
-                    }
+                    key={size}
+                    variant={selectedSize === size ? "active" : "secondary"}
                     size="sm"
-                    onClick={() =>
-                      setSelectedSize?.({
-                        id: variant.id,
-                        size: variant.size,
-                        price: variant.price,
-                        discount: variant.discount,
-                      })
-                    }
+                    onClick={() => setSelectedSize?.(size)}
                   >
-                    {getSizeCategory(index)}
+                    {size}
                   </Button>
                 ))}
               </span>
             </span>
-            {stocks === 0 ? (
+            {variantStock === 0 ? (
               <NotifyForm
                 product={data}
-                selectedVariant={selectedSize?.id ?? 0}
-                stock={stocks}
+                selectedVariant={variantId ?? 0}
+                stock={variantStock}
                 display={display}
                 setDisplay={setDisplay}
               />
@@ -176,9 +202,7 @@ const Cartbutton = ({
                 <CardBody>
                   <span className="flex justify-between items-center">
                     <p className="text-xs text-zinc-400">Statue Size</p>
-                    <p className="text-xs text-zinc-400">
-                      {selectedSize?.size} cm
-                    </p>
+                    <p className="text-xs text-zinc-400">{selectedSize} cm</p>
                   </span>
                   <Divider className="my-1" />
                   {/* Color Display */}
@@ -203,16 +227,13 @@ const Cartbutton = ({
                     <p className="text-xs text-zinc-400">Price</p>
                     <span className="flex gap-2">
                       <p className="text-sm">
-                        {selectedSize &&
-                          (selectedSize?.discount ?? 0) > 0 &&
-                          `${symbol} ${finalPrice}`}
+                        {variantDiscount > 0 && `${symbol} ${finalPrice}`}
                       </p>
                       <p
                         className={cn(
                           "text-sm",
-                          selectedSize &&
-                          (selectedSize?.discount ?? 0) > 0 &&
-                          "text-neutral-500 line-through"
+                          variantDiscount > 0 &&
+                            "text-neutral-500 line-through",
                         )}
                       >
                         {symbol} {convertedPrice}
@@ -222,17 +243,19 @@ const Cartbutton = ({
                 </CardBody>
               </Card>
             )}
-            {selectedSize?.id && stocks !== 0 && <AddToCart
-              className="w-full mt-2"
-              product={data}
-              variant={selectedSize.id}
-            />}
+            {variantId && variantStock !== 0 && (
+              <AddToCart
+                className="w-full mt-2"
+                product={data}
+                variant={variantId}
+              />
+            )}
           </>
         ) : (
           <NotifyForm
             product={data}
-            selectedVariant={selectedSize?.id ?? 0}
-            stock={stocks}
+            selectedVariant={variantId ?? 0}
+            stock={variantStock}
             display={display}
             setDisplay={setDisplay}
           />
@@ -262,7 +285,7 @@ const NotifyForm = ({
   const [notifyadded, setNotifyAdded] = useState<boolean>(false);
   const { data: Notify } = useGetnotifyuserQuery(
     { product: product, variant: selectedVariant, token: accessToken },
-    { skip: !product || !selectedVariant || stock !== 0 || !display }
+    { skip: !product || !selectedVariant || stock !== 0 || !display },
   );
   useEffect(() => {
     setNotifyAdded(Notify?.requested || false);
@@ -272,7 +295,7 @@ const NotifyForm = ({
     register,
     handleSubmit,
     formState: { errors },
-    watch
+    watch,
   } = useForm<EmailFormData>({
     resolver: zodResolver(EmailSchema),
   });
@@ -318,8 +341,13 @@ const NotifyForm = ({
       <Input
         {...register("email")}
         type="email"
-        placeholder={notifyadded ? "You will be notify soon!!" : "Enter your email"}
-        className={cn("dark:bg-custom/40 border-0 bg-white outline-none focus:ring-0 focus:border-transparent", notifyadded && "border-ring ring-2 ring-orange-400/50 ring-offset-2")}
+        placeholder={
+          notifyadded ? "You will be notify soon!!" : "Enter your email"
+        }
+        className={cn(
+          "dark:bg-custom/40 border-0 bg-white outline-none focus:ring-0 focus:border-transparent",
+          notifyadded && "border-ring ring-2 ring-orange-400/50 ring-offset-2",
+        )}
         disabled={notifyadded}
       />
       <Button

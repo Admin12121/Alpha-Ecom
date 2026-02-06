@@ -12,7 +12,7 @@ interface Variant {
   discount?: number | null;
 }
 
-interface CleanedProductData extends Omit<ProductFormValues, 'variants'> {
+interface CleanedProductData extends Omit<ProductFormValues, "variants"> {
   variants?: Variant[];
 }
 
@@ -25,7 +25,8 @@ export const useProductSubmit = (accessToken: string) => {
     productImages: File[],
     images: string[],
     resetForm: () => void,
-    clearImages: () => void
+    clearImages: () => void,
+    imageColors: Record<number, string> = {},
   ) => {
     const cleanedData: CleanedProductData = { ...data };
 
@@ -49,10 +50,7 @@ export const useProductSubmit = (accessToken: string) => {
     const formData = new FormData();
     formData.append("product_name", cleanedData.productName);
     formData.append("description", cleanedData.description);
-    formData.append(
-      "is_multi_variant",
-      cleanedData.isMultiVariant.toString()
-    );
+    formData.append("is_multi_variant", cleanedData.isMultiVariant.toString());
     formData.append("category", cleanedData.category.toString());
 
     if (!cleanedData.isMultiVariant) {
@@ -71,27 +69,24 @@ export const useProductSubmit = (accessToken: string) => {
         if (variant.color_name) {
           formData.append(`variants[${index}][color_name]`, variant.color_name);
         }
-        formData.append(
-          `variants[${index}][price]`,
-          variant.price.toString()
-        );
-        formData.append(
-          `variants[${index}][stock]`,
-          variant.stock.toString()
-        );
+        formData.append(`variants[${index}][price]`, variant.price.toString());
+        formData.append(`variants[${index}][stock]`, variant.stock.toString());
         if (variant.discount !== undefined && variant.discount !== null) {
           formData.append(
             `variants[${index}][discount]`,
-            variant.discount.toString()
+            variant.discount.toString(),
           );
         }
       });
     }
 
     try {
-      // Add images to form data
+      // Add images to form data (with optional color tags)
       productImages.forEach((image, index) => {
         formData.append(`images[${index}]`, image);
+        if (imageColors[index]) {
+          formData.append(`imageColor[${index}]`, imageColors[index]);
+        }
       });
 
       toast.loading("Uploading Product Details...", {

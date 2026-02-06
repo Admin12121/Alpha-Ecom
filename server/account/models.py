@@ -75,11 +75,10 @@ class User(AbstractBaseUser):
     )
 
     STATE_CHOICES = (
-        ("inactive", "Inactive"),
         ("active", "Active"),
         ("blocked", "Blocked"),
     )
-    state = models.CharField(max_length=20, choices=STATE_CHOICES, default="inactive")
+    state = models.CharField(max_length=20, choices=STATE_CHOICES, default="active")
 
     is_admin = models.BooleanField(default=False)
     is_superuser = models.BooleanField(default=False)

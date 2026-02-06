@@ -164,6 +164,21 @@ class UserViewSet(viewsets.ModelViewSet):
                         "state": "active",
                     },
                 )
+
+                if not created and user.state == "blocked":
+                    return Response(
+                        {
+                            "error": (
+                                "Your account has been suspended due to a violation of our "
+                                "Terms and Conditions. For more details or inquiries, "
+                                "contact us at info@alphasuits.com.np"
+                            ),
+                            "blocked": True,
+                            "terms_url": "/terms-of-service",
+                        },
+                        status=status.HTTP_403_FORBIDDEN,
+                    )
+
                 account, account_created = Account.objects.get_or_create(
                     user=user,
                     provider=provider,
@@ -221,25 +236,19 @@ class UserViewSet(viewsets.ModelViewSet):
                 {"error": "User not found"}, status=status.HTTP_404_NOT_FOUND
             )
 
-        # if user.state != 'active':
-        #     try:
-        #         token = generate_token.make_token(user)
-        #         uid = urlsafe_base64_encode(force_bytes(user.pk))
-        #         domain = config('Frontend_Domain')
-        #         link = f"{domain}/auth/{uid}/{token}"
-
-        #         subject = "Active your account"
-        #         message = render_to_string('Active_account.html', {
-        #             'name': user.username,
-        #             'link': link,
-        #         })
-        #         email = EmailMessage(subject, message, to=[user.email])
-        #         email.content_subtype = "html"
-        #         email.send()
-
-        #         return Response({'message': 'Acivation link sent to your email'}, status=status.HTTP_200_OK)
-        #     except User.DoesNotExist:
-        #         return Response({'error': 'Something went wrong'}, status=status.HTTP_404_NOT_FOUND)
+        if user.state == "blocked":
+            return Response(
+                {
+                    "error": (
+                        "Your account has been suspended due to a violation of our "
+                        "Terms and Conditions. For more details or inquiries, "
+                        "contact us at info@alphasuits.com.np"
+                    ),
+                    "blocked": True,
+                    "terms_url": "/terms-of-service",
+                },
+                status=status.HTTP_403_FORBIDDEN,
+            )
 
         if not user.check_password(password):
             user_data = {
@@ -421,11 +430,9 @@ class AdminUserViewSet(viewsets.ModelViewSet):
         exclude_data = self.request.query_params.get("exclude_by", "")
         exclude_data = exclude_data.split(",")
         if "active" in exclude_data:
-            queryset = queryset.exclude(is_active=True)
+            queryset = queryset.exclude(state="active")
         if "blocked" in exclude_data:
-            queryset = queryset.exclude(is_blocked=True)
-        if "inactive" in exclude_data:
-            queryset = queryset.exclude(is_active=False)
+            queryset = queryset.exclude(state="blocked")
         return queryset
 
     @action(detail=False, methods=["get"])
@@ -526,34 +533,13 @@ class AdminUserViewSet(viewsets.ModelViewSet):
             )
 
         try:
-            # Use `update` for efficiency
-            User.objects.filter(id__in=user_ids).update(is_active=True)
+            User.objects.filter(id__in=user_ids).update(state="active")
         except IntegrityError as e:
             transaction.set_rollback(True)
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
         return Response(
             {"message": "Users activated successfully!"}, status=status.HTTP_200_OK
-        )
-
-    @transaction.atomic
-    @action(detail=False, methods=["patch"])
-    def bulk_deactivate(self, request):
-        user_ids = request.data.get("user_ids", [])
-        if not user_ids:
-            return Response(
-                {"error": "No user IDs provided"}, status=status.HTTP_400_BAD_REQUEST
-            )
-
-        try:
-            # Use `update` for efficiency
-            User.objects.filter(id__in=user_ids).update(is_active=False)
-        except IntegrityError as e:
-            transaction.set_rollback(True)
-            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
-
-        return Response(
-            {"message": "Users deactivated successfully!"}, status=status.HTTP_200_OK
         )
 
     @transaction.atomic
@@ -566,14 +552,37 @@ class AdminUserViewSet(viewsets.ModelViewSet):
             )
 
         try:
-            # Use `update` for efficiency
-            User.objects.filter(id__in=user_ids).update(is_blocked=True)
+            User.objects.filter(id__in=user_ids).update(state="blocked")
         except IntegrityError as e:
             transaction.set_rollback(True)
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
         return Response(
             {"message": "Users blocked successfully!"}, status=status.HTTP_200_OK
+        )
+
+    @action(detail=True, methods=["patch"])
+    def update_state(self, request, pk=None):
+        """Update a single user's state (active/blocked). Admin only."""
+        new_state = request.data.get("state")
+        if new_state not in ("active", "blocked"):
+            return Response(
+                {"error": "State must be 'active' or 'blocked'"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            user = User.objects.get(pk=pk)
+        except User.DoesNotExist:
+            return Response(
+                {"error": "User not found"}, status=status.HTTP_404_NOT_FOUND
+            )
+
+        user.state = new_state
+        user.save(update_fields=["state"])
+        return Response(
+            {"message": f"User state updated to {new_state}"},
+            status=status.HTTP_200_OK,
         )
 
 

@@ -14,7 +14,7 @@ const Accounts = () => {
   const [searchLoading, setSearchLoading] = useState<boolean>(false);
   const { data, isLoading, refetch } = useAllUsersQuery(
     { search, rowsperpage, page, exclude_by, token: accessToken },
-    { skip: !accessToken }
+    { skip: !accessToken },
   );
 
   useEffect(() => {
@@ -43,6 +43,7 @@ const Accounts = () => {
           setSearch={setSearch}
           dataperpage={setRowsPerPage}
           refetch={refetch}
+          accessToken={accessToken || ""}
         />
       </div>
     </div>

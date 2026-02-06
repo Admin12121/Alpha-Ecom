@@ -4,6 +4,7 @@ import { toast } from "sonner";
 export const useImageUpload = (maxImages = 5) => {
   const [images, setImages] = useState<string[]>([]);
   const [productImages, setProductImages] = useState<File[]>([]);
+  const [imageColors, setImageColors] = useState<Record<number, string>>({});
   const [isDragging, setIsDragging] = useState<boolean>(false);
   const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
   const [loadingIndex, setLoadingIndex] = useState<number | null>(null);
@@ -38,7 +39,7 @@ export const useImageUpload = (maxImages = 5) => {
         }
       } else {
         toast.error(
-          "Invalid File Format. Please upload a PNG image with a maximum size of 50MB."
+          "Invalid File Format. Please upload a PNG image with a maximum size of 50MB.",
         );
       }
     }
@@ -50,7 +51,7 @@ export const useImageUpload = (maxImages = 5) => {
     try {
       // Process all files in parallel
       const base64Results = await Promise.all(
-        validFiles.map(file => fileToBase64(file))
+        validFiles.map((file) => fileToBase64(file)),
       );
 
       newImagePreviews.push(...base64Results);
@@ -99,19 +100,47 @@ export const useImageUpload = (maxImages = 5) => {
     }
   };
 
+  const setImageColor = (index: number, colorCode: string) => {
+    setImageColors((prev) => ({ ...prev, [index]: colorCode }));
+  };
+
+  const clearImageColor = (index: number) => {
+    setImageColors((prev) => {
+      const next = { ...prev };
+      delete next[index];
+      return next;
+    });
+  };
+
   const removeImage = (index: number) => {
     setImages((prev) => prev.filter((_, i) => i !== index));
     setProductImages((prev) => prev.filter((_, i) => i !== index));
+    // Shift color assignments down and remove the deleted index
+    setImageColors((prev) => {
+      const next: Record<number, string> = {};
+      Object.entries(prev).forEach(([key, value]) => {
+        const k = Number(key);
+        if (k < index) {
+          next[k] = value;
+        } else if (k > index) {
+          next[k - 1] = value;
+        }
+        // k === index is removed
+      });
+      return next;
+    });
   };
 
   const removeAllImages = () => {
     setImages([]);
     setProductImages([]);
+    setImageColors({});
   };
 
   return {
     images,
     productImages,
+    imageColors,
     isDragging,
     draggingIndex,
     loadingIndex,
@@ -123,5 +152,7 @@ export const useImageUpload = (maxImages = 5) => {
     handleInputChange,
     removeImage,
     removeAllImages,
+    setImageColor,
+    clearImageColor,
   };
 };

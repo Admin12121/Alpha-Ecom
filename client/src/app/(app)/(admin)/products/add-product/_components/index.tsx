@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -32,12 +32,13 @@ const AddProduct = () => {
     toggleVariantType,
     handleBlur,
   } = useProductForm();
-  
+
   // Create watch function for real-time color updates
   const watchVariants = form.watch;
   const {
     images,
     productImages,
+    imageColors,
     isDragging,
     draggingIndex,
     loadingIndex,
@@ -49,26 +50,50 @@ const AddProduct = () => {
     handleInputChange,
     removeImage,
     removeAllImages,
+    setImageColor,
+    clearImageColor,
   } = useImageUpload();
+
+  // Extract unique colors from the current variants for image tagging
+  const watchedVariants = form.watch("variants");
+  const variantsColorKey = JSON.stringify(
+    (watchedVariants || []).map((v: any) => [v?.color_code, v?.color_name]),
+  );
+  const availableColors = useMemo(() => {
+    if (!watchedVariants || !Array.isArray(watchedVariants)) return [];
+    const colorMap = new Map<string, { code: string; name: string }>();
+    watchedVariants.forEach((v: any) => {
+      if (v?.color_code && v?.color_name) {
+        colorMap.set(v.color_code, {
+          code: v.color_code,
+          name: v.color_name,
+        });
+      }
+    });
+    return Array.from(colorMap.values());
+  }, [variantsColorKey]);
 
   const { onSubmit: handleProductSubmit } = useProductSubmit(accessToken);
 
   // Category query
   const selectedCategory = form.watch("category");
 
-  const { data: categoryData, isLoading: isCategoryLoading, refetch: refetchCategories } = useGetCategoryQuery(
-    { name: "" },
-    { skip: false }
-  );
+  const {
+    data: categoryData,
+    isLoading: isCategoryLoading,
+    refetch: refetchCategories,
+  } = useGetCategoryQuery({ name: "" }, { skip: false });
 
   const [addCategory] = useAddCategoryMutation();
 
   // Convert API data to component types
-  const categoryOptions: CategoryOption[] = (categoryData?.results || []).map((cat: any) => ({
-    id: cat.id,
-    name: cat.name,
-    categoryslug: cat.categoryslug,
-  }));
+  const categoryOptions: CategoryOption[] = (categoryData?.results || []).map(
+    (cat: any) => ({
+      id: cat.id,
+      name: cat.name,
+      categoryslug: cat.categoryslug,
+    }),
+  );
 
   const handleCategoryChange = useCallback(
     (value: CategoryOption | null) => {
@@ -76,7 +101,7 @@ const AddProduct = () => {
         form.setValue("category", Number(value.id));
       }
     },
-    [form]
+    [form],
   );
 
   const handleAddCategory = useCallback(
@@ -90,7 +115,7 @@ const AddProduct = () => {
       }
       await refetchCategories();
     },
-    [addCategory, accessToken, refetchCategories]
+    [addCategory, accessToken, refetchCategories],
   );
 
   const onSubmit = useCallback(
@@ -100,12 +125,19 @@ const AddProduct = () => {
         productImages,
         images,
         () => form.reset(),
-        removeAllImages
+        removeAllImages,
+        imageColors,
       );
     },
-    [handleProductSubmit, productImages, images, form, removeAllImages]
+    [
+      handleProductSubmit,
+      productImages,
+      images,
+      form,
+      removeAllImages,
+      imageColors,
+    ],
   );
-
 
   return (
     <form
@@ -195,6 +227,10 @@ const AddProduct = () => {
               onRemoveImage={removeImage}
               onRemoveAll={removeAllImages}
               onInputChange={handleInputChange}
+              availableColors={availableColors}
+              imageColors={imageColors}
+              onSetImageColor={setImageColor}
+              onClearImageColor={clearImageColor}
             />
           </CardContent>
         </Card>

@@ -7,14 +7,26 @@ import React, {
   useDeferredValue,
   JSX,
 } from "react";
-import { Badge, BadgeCheck, Truck } from "lucide-react";
+import { Badge, BadgeCheck, Trash2, Truck } from "lucide-react";
 import { motion, PanInfo } from "framer-motion";
 import { cn, delay } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import {
   useGetOrdersQuery,
   useUpdateSaleMutation,
+  useDeleteSaleMutation,
 } from "@/lib/store/Service/api";
 import { useAuthUser } from "@/hooks/use-auth-user";
 import { useRouter } from "nextjs-toploader/app";
@@ -137,7 +149,7 @@ const Kanban = ({ deferredSearch }: { deferredSearch?: string }) => {
       search: deferredSearch,
       page: state.onShippingPage,
     },
-    { skip: !accessToken }
+    { skip: !accessToken },
   );
 
   const {
@@ -151,7 +163,7 @@ const Kanban = ({ deferredSearch }: { deferredSearch?: string }) => {
       search: deferredSearch,
       page: state.arrivedPage,
     },
-    { skip: !accessToken }
+    { skip: !accessToken },
   );
 
   const {
@@ -165,7 +177,7 @@ const Kanban = ({ deferredSearch }: { deferredSearch?: string }) => {
       search: deferredSearch,
       page: state.deliveredPage,
     },
-    { skip: !accessToken }
+    { skip: !accessToken },
   );
 
   const {
@@ -179,7 +191,7 @@ const Kanban = ({ deferredSearch }: { deferredSearch?: string }) => {
       search: deferredSearch,
       page: state.canceledPage,
     },
-    { skip: !accessToken }
+    { skip: !accessToken },
   );
 
   const refetchData = (type: string, multiple: boolean) => {
@@ -281,7 +293,7 @@ type ColumnProps = {
 
 const getStatusTransition = (
   currentIndex: number,
-  targetIndex: number
+  targetIndex: number,
 ): string | null => {
   if (currentIndex === 0 && targetIndex === 1) return "proceed";
   if (currentIndex === 1 && targetIndex === 2) return "delivered";
@@ -304,6 +316,7 @@ const Column = ({
 }: ColumnProps) => {
   const { accessToken } = useAuthUser();
   const [updateSale] = useUpdateSaleMutation();
+  const [deleteSale] = useDeleteSaleMutation();
 
   const [active, setActive] = useState(false);
 
@@ -355,7 +368,7 @@ const Column = ({
     if (!element) return;
     const transition = getStatusTransition(
       currentColumnIndex,
-      targetColumnIndex
+      targetColumnIndex,
     );
     if (transition) {
       handleUpdateSale(parseInt(cardId), transition, currentColumnIndex, true);
@@ -404,7 +417,7 @@ const Column = ({
       {
         offset: Number.NEGATIVE_INFINITY,
         element: indicators[indicators.length - 1],
-      }
+      },
     );
 
     return el;
@@ -413,8 +426,8 @@ const Column = ({
   const getIndicators = () => {
     return Array.from(
       document.querySelectorAll(
-        `[data-column="${column}"]`
-      ) as unknown as HTMLElement[]
+        `[data-column="${column}"]`,
+      ) as unknown as HTMLElement[],
     );
   };
 
@@ -427,7 +440,7 @@ const Column = ({
     id: number,
     status: string,
     currentStatus: number,
-    type: boolean = false
+    type: boolean = false,
   ) => {
     const columnOrder = ["onshipping", "arrived", "delivered", "canceled"];
     const currentColumn = columnOrder[currentStatus];
@@ -435,7 +448,7 @@ const Column = ({
       `Updating status for order ${id} to ${status}`,
       {
         position: "top-center",
-      }
+      },
     );
     await delay(500);
     const actualData = {
@@ -457,6 +470,26 @@ const Column = ({
     }
   };
 
+  const handleDeleteSale = async (id: number) => {
+    const toastId = toast.loading("Deleting order...", {
+      position: "top-center",
+    });
+    await delay(500);
+    const res = await deleteSale({ id, token: accessToken });
+    if (res.data) {
+      toast.success("Order deleted successfully", {
+        id: toastId,
+        position: "top-center",
+      });
+      refetchData("canceled", false);
+    } else {
+      toast.error("Failed to delete order", {
+        id: toastId,
+        position: "top-center",
+      });
+    }
+  };
+
   return (
     <div className="w-full shrink-0">
       <div className="mb-3 flex items-center justify-between">
@@ -465,13 +498,13 @@ const Column = ({
         >
           <span
             className={cn(
-              `animate-ping absolute inline-flex h-2 w-2  rounded-full bg-${headingColor}`
+              `animate-ping absolute inline-flex h-2 w-2  rounded-full bg-${headingColor}`,
             )}
           ></span>
           <span
             className={cn(
-              `inline-flex h-2 w-2 right-0 top-0 rounded-full 
-              bg-${headingColor}`
+              `inline-flex h-2 w-2 right-0 top-0 rounded-full
+              bg-${headingColor}`,
             )}
           ></span>
           {title}
@@ -496,6 +529,7 @@ const Column = ({
                   title={title}
                   handleDragStart={handleDragStart}
                   handleUpdateSale={handleUpdateSale}
+                  handleDeleteSale={handleDeleteSale}
                 />
               );
             })
@@ -546,9 +580,11 @@ const Card = ({
   title,
   handleDragStart,
   handleUpdateSale,
+  handleDeleteSale,
 }: Order & {
   handleDragStart: DragStartHandler;
   handleUpdateSale: any;
+  handleDeleteSale: (id: number) => Promise<void>;
   title: string;
 }) => {
   const route = useRouter();
@@ -557,7 +593,7 @@ const Card = ({
     (text: string, maxLength: number): string => {
       return text.length > maxLength ? `${text.slice(0, maxLength)}...` : text;
     },
-    []
+    [],
   );
   const formatDate = (date: Date): string => {
     return date.toLocaleDateString("en-GB", {
@@ -569,7 +605,7 @@ const Card = ({
 
   const calculateEstimatedArrival = (
     created: string,
-    daysToAdd: number
+    daysToAdd: number,
   ): string => {
     const createdDate = new Date(created);
     createdDate.setDate(createdDate.getDate() + daysToAdd);
@@ -578,7 +614,7 @@ const Card = ({
 
   const handleMotionDragStart = (
     event: MouseEvent | TouchEvent | PointerEvent,
-    info: PanInfo
+    info: PanInfo,
   ) => {
     const dragEvent = event as unknown as DragEvent;
     handleDragStart(dragEvent, { transactionuid, id: id.toString(), status });
@@ -644,7 +680,7 @@ const Card = ({
             title === "OnShipping" && "ring-orange-400",
             title === "Arrived" && "ring-blue-400",
             title === "Delivered" && "ring-green-400",
-            title === "Canceled" && "ring-red-400"
+            title === "Canceled" && "ring-red-400",
           ),
         }}
       >
@@ -676,15 +712,47 @@ const Card = ({
           Estimated arrival: {calculateEstimatedArrival(created, 7)}
         </p>
         <div className="w-full flex justify-between items-end">
-          <p>
-            Total: रु {total_amt}
-          </p>
-          <Button
-            size="sm"
-            onClick={() => route.push(`sales/${transactionuid}`)}
-          >
-            Details
-          </Button>
+          <p>Total: रु {total_amt}</p>
+          <span className="flex gap-1 items-center">
+            {(status === "cancelled" || status === "unpaid") && (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    className="p-1.5 h-auto"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Delete this order?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This will permanently delete order #{transactionuid}. This
+                      action cannot be undone.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      className="bg-red-600 hover:bg-red-700"
+                      onClick={() => handleDeleteSale(id)}
+                    >
+                      Delete
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
+            <Button
+              size="sm"
+              onClick={() => route.push(`sales/${transactionuid}`)}
+            >
+              Details
+            </Button>
+          </span>
         </div>
       </motion.div>
     </>
@@ -735,7 +803,7 @@ export const SalesSkeleton = ({
           { length: Math.floor(Math.random() * 4) + 1 },
           (_, index) => (
             <Skeleton key={index} />
-          )
+          ),
         )}
       </>
     );
@@ -748,6 +816,5 @@ type CardType = {
   id: string;
   status: any;
 };
-
 
 export default Kanban;

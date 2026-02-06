@@ -5,7 +5,7 @@ import Image from "next/image";
 import { cn } from "@/lib/utils";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { useUpdateQueryParams } from "@/lib/query-params";
-import React, { useState, useDeferredValue, useEffect } from "react";
+import React, { useState, useMemo, useDeferredValue, useEffect } from "react";
 import { Autoplay, Navigation, Pagination, EffectFade } from "swiper/modules";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -36,11 +36,6 @@ interface ProductCardProps {
   base?: boolean;
 }
 
-interface SelectedSize {
-  id: number;
-  size: string | null;
-}
-
 interface SelectedColor {
   id: number;
   name: string;
@@ -56,20 +51,35 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   const [variantsData, setVariantsData] = useState<
     VariantObject[] | VariantObject | null
   >(null);
-  const [selectedSize, setSelectedSize] = useState<SelectedSize | null>(null);
-  const [selectedColor, setSelectedColor] = useState<SelectedColor | null>(null);
+  const [selectedColor, setSelectedColor] = useState<SelectedColor | null>(
+    null,
+  );
+  const [selectedSize, setSelectedSize] = useState<string | null>(null);
   const [showColorPicker, setShowColorPicker] = useState(false);
 
   // Use backend colors if available, otherwise empty array
-  const availableColors: Color[] = data.colors && data.colors.length > 0
-    ? data.colors.map((color, index) => ({
-      id: index + 1,
-      name: color.color_name,
-      code: color.color_code,
-    }))
-    : [];
+  const availableColors: Color[] =
+    data.colors && data.colors.length > 0
+      ? data.colors.map((color, index) => ({
+          id: index + 1,
+          name: color.color_name,
+          code: color.color_code,
+        }))
+      : [];
 
-  // Initialize with first color
+  // Initialize variants + default color + default size
+  useEffect(() => {
+    if (!data?.variants) return;
+
+    if (Array.isArray(data.variants)) {
+      setVariantsData(data.variants);
+    } else {
+      setVariantsData(data.variants);
+      setSelectedSize(data.variants.size);
+    }
+  }, [data?.variants]);
+
+  // Initialize first color
   useEffect(() => {
     if (availableColors.length > 0 && !selectedColor) {
       setSelectedColor({
@@ -80,73 +90,51 @@ export const ProductCard: React.FC<ProductCardProps> = ({
     }
   }, [availableColors, selectedColor]);
 
-  // Consolidate duplicate useEffects into one optimized version
+  // When color changes, auto-select first available size for that color
   useEffect(() => {
-    if (!data?.variants) return;
-
-    if (Array.isArray(data.variants)) {
-      // Sort variants by size
-      const sortedVariants = [...data.variants].sort(
-        (a, b) => Number(a.size) - Number(b.size)
-      );
-      setVariantsData(sortedVariants);
-
-      // Set first variant as selected
-      if (sortedVariants.length > 0) {
-        setSelectedSize({
-          id: sortedVariants[0].id,
-          size: sortedVariants[0].size,
-        });
-      }
-    } else {
-      // Single variant
-      setVariantsData(data.variants);
-      setSelectedSize({
-        id: data.variants.id,
-        size: data.variants.size,
-      });
+    if (!Array.isArray(variantsData) || !selectedColor) return;
+    const variantsForColor = variantsData.filter(
+      (v) => v.color_code === selectedColor.code,
+    );
+    const sizesForColor = variantsForColor
+      .map((v) => v.size)
+      .filter((s): s is string => s !== null);
+    if (!selectedSize || !sizesForColor.includes(selectedSize)) {
+      setSelectedSize(sizesForColor[0] || null);
     }
-  }, [data?.variants]);
+  }, [selectedColor, variantsData]);
 
-  // Type-safe variant data getter
-  const getVariantData = (
-    variantsData: VariantObject[] | VariantObject | null,
-    key: keyof VariantObject,
-    index: number = 0
-  ): string | number | null => {
-    if (Array.isArray(variantsData)) {
-      const variant = variantsData.find((variant) => variant.id === index);
-      return variant ? (variant[key] ?? null) : null;
-    }
-    if (variantsData) {
-      return variantsData[key] ?? null;
-    }
-    return null;
-  };
+  // Find the matched variant by color + size
+  const matchedVariant = React.useMemo(() => {
+    if (!Array.isArray(variantsData)) return variantsData || null;
+    if (!selectedColor || !selectedSize) return variantsData[0] || null;
+    return (
+      variantsData.find(
+        (v) => v.color_code === selectedColor.code && v.size === selectedSize,
+      ) || null
+    );
+  }, [variantsData, selectedColor, selectedSize]);
 
-  // Calculate variant data
-  const convertedPrice = (getVariantData(
-    variantsData,
-    "price",
-    selectedSize?.id
-  ) as number) ?? 0;
-
-  const discount = (getVariantData(
-    variantsData,
-    "discount",
-    selectedSize?.id
-  ) as number) ?? 0;
-
-  const stocks = (getVariantData(
-    variantsData,
-    "stock",
-    selectedSize?.id
-  ) as number) ?? 0;
+  // Calculate variant data from matched variant
+  const convertedPrice = matchedVariant ? Number(matchedVariant.price) : 0;
+  const discount = matchedVariant ? Number(matchedVariant.discount) : 0;
+  const stocks = matchedVariant ? matchedVariant.stock : 0;
 
   // Calculate final price
-  const finalPrice = !convertedPrice || !discount
-    ? convertedPrice
-    : Number((convertedPrice - convertedPrice * (discount / 100)).toFixed(2));
+  const finalPrice =
+    !convertedPrice || !discount
+      ? convertedPrice
+      : Number((convertedPrice - convertedPrice * (discount / 100)).toFixed(2));
+
+  // Filter images by selected color; fall back to all if none match
+  const displayImages = useMemo(() => {
+    if (!data?.images) return [];
+    if (!selectedColor) return data.images;
+    const colorImages = data.images.filter(
+      (img: any) => img.color === selectedColor.code,
+    );
+    return colorImages.length > 0 ? colorImages : data.images;
+  }, [data?.images, selectedColor]);
 
   const productslug = data.productslug;
 
@@ -160,12 +148,12 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         className={cn(
           "relative rounded-lg overflow-hidden group grow isolation-auto z-10 svelte-483qmb p-1",
           "bg-white dark:bg-neutral-950",
-          "flex flex-col gap-1"
+          "flex flex-col gap-1",
         )}
       >
         <span
           className={cn(
-            `absolute z-10 pl-1 top-2 flex items-center gap-1 h-5 w-full font-normal`
+            `absolute z-10 pl-1 top-2 flex items-center gap-1 h-5 w-full font-normal`,
           )}
         >
           {stocks === 0 ? (
@@ -201,11 +189,14 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             effect="fade"
             modules={[Autoplay, Navigation, Pagination, EffectFade]}
             style={{ margin: "0px" }}
-            className={cn(`w-full h-[390px] rounded-lg relative overflow-hidden`, width)}
+            className={cn(
+              `w-full h-[390px] rounded-lg relative overflow-hidden`,
+              width,
+            )}
           >
-            {data?.images?.map((imageData: InterfaceImage, index: number) => {
+            {displayImages.map((imageData: InterfaceImage, index: number) => {
               const isPng = ["not.png", "not.webp"].some((ext) =>
-                imageData.image.endsWith(ext)
+                imageData.image.endsWith(ext),
               );
               const imageClassName = isPng ? "w-full h-full object-cover" : "";
 
@@ -224,7 +215,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
                         loading={index === 0 ? "eager" : "lazy"}
                         className={cn(
                           "w-full cursor-pointer h-[350px] object-contain",
-                          imageClassName
+                          imageClassName,
                         )}
                         alt={`${productslug}-${index}`}
                       />
@@ -242,7 +233,9 @@ export const ProductCard: React.FC<ProductCardProps> = ({
                 "flex flex-col-reverse absolute bottom-2 right-2 z-40",
                 "rounded-full bg-white/90 dark:bg-neutral-900/90 shadow-lg",
                 "isolate overflow-y-auto transition-all duration-300",
-                showColorPicker ? "w-10 lg:w-7 lg:p-1 lg:gap-1 p-2 gap-2" : "w-6 lg:w-7 p-1 gap-1"
+                showColorPicker
+                  ? "w-10 lg:w-7 lg:p-1 lg:gap-1 p-2 gap-2"
+                  : "w-6 lg:w-7 p-1 gap-1",
               )}
               onMouseEnter={() => setShowColorPicker(true)}
               onMouseLeave={() => setShowColorPicker(false)}
@@ -271,11 +264,13 @@ export const ProductCard: React.FC<ProductCardProps> = ({
                       "shadow-none outline-none border-none isolate hover:opacity-90",
                       "transition-all duration-300",
                       // Margin logic for stacking
-                      isCollapsed ? (
-                        index === 0 ? "" :
-                          isFirstThree ? "-mb-[calc(100%+1px)]" :
-                            "-mb-[calc(100%+4px)] invisible [transition:margin_0.3s,visibility_0.2s]"
-                      ) : "mb-0 visible [transition:margin_0.3s,visibility_0.2s]"
+                      isCollapsed
+                        ? index === 0
+                          ? ""
+                          : isFirstThree
+                            ? "-mb-[calc(100%+1px)]"
+                            : "-mb-[calc(100%+4px)] invisible [transition:margin_0.3s,visibility_0.2s]"
+                        : "mb-0 visible [transition:margin_0.3s,visibility_0.2s]",
                     )}
                     style={{
                       backgroundColor: color.code,
@@ -290,7 +285,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
                         className={cn(
                           "w-1.5 h-1.5 aspect-square rounded-full absolute inset-0 m-auto",
                           "bg-white/90 dark:bg-black/90 z-10 transition-all",
-                          showColorPicker ? "opacity-100" : "opacity-0"
+                          showColorPicker ? "opacity-100" : "opacity-0",
                         )}
                       />
                     )}
@@ -305,7 +300,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         <span
           className={cn(
             "relative w-full h-[90px] flex flex-col rounded-lg p-3 py-2 justify-between dark:bg-transparent",
-            base && "bg-[url('/bg.svg')] bg-cover dark:bg-img-inherit"
+            base && "bg-[url('/bg.svg')] bg-cover dark:bg-img-inherit",
           )}
         >
           <div className="flex gap-3 items-center">
@@ -321,13 +316,11 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           </div>
           <div className="flex w-full justify-between items-center gap-1">
             <span className={cn("flex", discount > 0 && " gap-2")}>
-              <p className="text-sm">
-                {discount > 0 && `रु ${finalPrice}`}
-              </p>
+              <p className="text-sm">{discount > 0 && `रु ${finalPrice}`}</p>
               <p
                 className={cn(
                   "text-sm",
-                  discount > 0 && "text-neutral-400 line-through"
+                  discount > 0 && "text-neutral-400 line-through",
                 )}
               >
                 रु {convertedPrice}
@@ -338,12 +331,13 @@ export const ProductCard: React.FC<ProductCardProps> = ({
                 data={data.id}
                 stocks={stocks}
                 variantsData={variantsData}
-                setSelectedSize={setSelectedSize}
                 selectedSize={selectedSize}
+                setSelectedSize={setSelectedSize}
                 finalPrice={finalPrice}
                 convertedPrice={convertedPrice}
                 symbol="रु"
                 selectedColor={selectedColor}
+                matchedVariant={matchedVariant}
               />
             )}
           </div>
@@ -358,7 +352,7 @@ export const Skeleton = ({ className }: { className?: string }) => {
     <section
       className={cn(
         "w-full relative p-1 h-full flex flex-col gap-1 rounded-lg",
-        className
+        className,
       )}
     >
       <div className="w-full animate-pulse bg-neutral-800/10 dark:bg-neutral-100/10 h-[390px] rounded-lg"></div>
@@ -398,7 +392,7 @@ export const ProductSkeleton = ({
         className={cn(
           "grid grid-cols-1 md:grid-cols-2 gap-2 lg:grid-cols-3 xl:grid-cols-4 lg:gap-4 transition-opacity motion-reduce:transition-none",
           filters && "lg:grid-cols-2 xl:grid-cols-3",
-          className
+          className,
         )}
       >
         {Array.from({ length: randomLength }, (_, index) => (

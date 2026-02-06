@@ -94,7 +94,7 @@ export default function Cart() {
   const productIds = Array.from(new Set(cartdata.map((item) => item.product)));
   const { data, isLoading, refetch } = useProductsByIdsQuery(
     { ids: productIds },
-    { skip: productIds.length === 0 || !isSheetOpen }
+    { skip: productIds.length === 0 || !isSheetOpen },
   );
   const [redeemCode] = useVerifyRedeemCodeMutation();
   useEffect(() => {
@@ -120,7 +120,7 @@ export default function Cart() {
       let variantDetails;
       if (Array.isArray(product.variants)) {
         variantDetails = product.variants.find(
-          (v: { id: number }) => v.id === cartItem.variant
+          (v: { id: number }) => v.id === cartItem.variant,
         );
       } else {
         variantDetails = product.variants;
@@ -154,38 +154,32 @@ export default function Cart() {
         const discount = item.variantDetails.discount;
         const pcs = item.pcs ?? 0;
         const finalPrice = Number(
-          (price - price * (discount / 100)).toFixed(2)
+          (price - price * (discount / 100)).toFixed(2),
         );
         acc.totalPrice += finalPrice * pcs;
         return acc;
       },
-      { totalPrice: 0 }
+      { totalPrice: 0 },
     );
   };
 
   const [outOfStockItems, setOutOfStockItems] = useState<CartItemWithDetails[]>(
-    []
+    [],
   );
   const [cartItemsWithDetails, setCartItemsWithDetails] = useState<
     CartItemWithDetails[]
   >([]);
   const [convertedPrice, setConvertedPrice] = useState(0);
 
-
   useEffect(() => {
     const { availableItems, outOfStockItems } = getCartItemsWithDetails();
     const { totalPrice } = getTotalPrice(availableItems);
-    const convertedPrice = totalPrice
+    const convertedPrice = totalPrice;
 
     if (discountData) {
       const calcDis = () => {
         if (discountData?.type === "percentage") {
-          return Number(
-            (
-              total *
-              (discountData?.discount / 100)
-            ).toFixed(2)
-          );
+          return Number((total * (discountData?.discount / 100)).toFixed(2));
         } else {
           return Number(discountData?.discount);
         }
@@ -197,7 +191,6 @@ export default function Cart() {
     setOutOfStockItems(outOfStockItems);
     setCartItemsWithDetails(availableItems);
     setConvertedPrice(convertedPrice);
-
   }, [isSheetOpen, cartdata, data, discountData]);
 
   const handleenc = () => {
@@ -248,12 +241,12 @@ export default function Cart() {
           )}
         </Button>
       </SheetTrigger>
-      <SheetContent className="border-0 w-[97dvw] mr-[1.5dvw] md:min-w-[500px] h-[97.5dvh] top-[1vh] rounded-lg bg-neutral-200 dark:bg-neutral-950 md:mr-2 p-2">
+      <SheetContent className="border-0 w-[97dvw] mr-[1.5dvw] md:min-w-[500px] h-[98dvh] top-[1vh] rounded-lg bg-neutral-200 dark:bg-neutral-950 md:mr-2 p-2">
         <SheetHeader>
           <SheetTitle className="text-base">Cart</SheetTitle>
         </SheetHeader>
         {totalPieces > 0 ? (
-          <div className="relative h-[95dvh]">
+          <div className="relative h-[calc(98dvh_-_30px)]">
             <div className="py-2 flex flex-col gap-3 h-[90dvh] overflow-y-auto">
               <h1 className="text-2xl">
                 Your cart total is रु {convertedPrice}
@@ -284,7 +277,7 @@ export default function Cart() {
                       <Input
                         className={cn(
                           "w-full bg-muted dark:bg-neutral-950 rounded-md",
-                          errors.code && "!ring-red-500 !bg-red-500/10"
+                          errors.code && "!ring-red-500 !bg-red-500/10",
                         )}
                         placeholder="Enter your code"
                         {...register("code")}
@@ -302,22 +295,18 @@ export default function Cart() {
               </Accordion>
               <Card
                 className={cn(
-                  "border !border-zinc-400/50 dark:!border-zinc-800 pb-1.5"
+                  "border !border-zinc-400/50 dark:!border-zinc-800 pb-1.5",
                 )}
               >
                 <CardBody className="flex text-sm gap-1 flex-col">
                   <span className="flex w-full justify-between items-center">
                     <p>Subtotal</p>
-                    <p>
-                      रु {convertedPrice}
-                    </p>
+                    <p>रु {convertedPrice}</p>
                   </span>
                   {discount > 0 && (
                     <span className="flex w-full justify-between items-center">
                       <p>Discount</p>
-                      <p>
-                        रु {discount}
-                      </p>
+                      <p>रु {discount}</p>
                     </span>
                   )}
                   <span className="flex w-full justify-between items-center">
@@ -331,7 +320,7 @@ export default function Cart() {
                   <span className="flex w-full justify-between items-center">
                     <p>Total </p>
                     <p>
-                      रु {" "}
+                      रु{" "}
                       {discount > 0
                         ? Number(convertedPrice - discount).toFixed(2)
                         : convertedPrice}
@@ -349,14 +338,6 @@ export default function Cart() {
               <FeatureProduct title="You may also like" skip={isSheetOpen} />
             </div>
             <SheetFooter className="flex !flex-col gap-1 items-center absolute w-full bottom-0 py-2  z-50">
-              <Icons
-                icons={["esewa", "visa"]}
-                className="bg-neutral-200 dark:bg-neutral-950 pt-1"
-              />
-              <Separator
-                className="w-full bg-zinc-800/20 dark:bg-zinc-400/50"
-                orientation="horizontal"
-              />
               <SheetClose asChild>
                 <Button
                   type="submit"
@@ -396,7 +377,7 @@ const CartItem = ({
   const discount = data.variantDetails.discount;
   // Simple calculations - React 19 compiler handles optimization
   const finalPrice = Number(
-    (convertedPrice - convertedPrice * (discount / 100)).toFixed(2)
+    (convertedPrice - convertedPrice * (discount / 100)).toFixed(2),
   );
 
   // Pure utility function - no need for useCallback
@@ -458,7 +439,7 @@ const CartItem = ({
                 )}
               </Button>
               {data.variantDetails.stock === 0 ||
-                data.variantDetails.stock < data.pcs ? (
+              data.variantDetails.stock < data.pcs ? (
                 <Chip variant="danger">out of stock</Chip>
               ) : (
                 <>
@@ -499,7 +480,7 @@ const CartItem = ({
             <p
               className={cn(
                 "text-sm",
-                discount > 0 && "text-neutral-500 line-through"
+                discount > 0 && "text-neutral-500 line-through",
               )}
             >
               रु {convertedPrice * data.pcs}

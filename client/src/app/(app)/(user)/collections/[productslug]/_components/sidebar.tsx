@@ -83,19 +83,51 @@ export const getSizeCategory = (index: number) => {
   return sizeNames[index] || `Size-${index + 1}`;
 };
 
-const Sidebar = ({ products }: { products: Product }) => {
+const SIZE_ORDER = [
+  "XS",
+  "S",
+  "M",
+  "L",
+  "XL",
+  "XXL",
+  "2XL",
+  "3XL",
+  "4XL",
+  "5XL",
+];
+const getSizeOrder = (size: string) => {
+  const idx = SIZE_ORDER.indexOf(size.toUpperCase());
+  return idx === -1 ? 999 : idx;
+};
+
+const Sidebar = ({
+  products,
+  selectedColor,
+  onColorChange,
+}: {
+  products: Product;
+  selectedColor?: { code: string; name: string } | null;
+  onColorChange?: (color: { code: string; name: string }) => void;
+}) => {
   const router = useRouter();
   const { status } = useAuthUser();
   const { updateProductList } = useCart();
 
-  const [selectedSize, setSelectedSize] = useState<{
-    id: number;
-    size: string | null;
-  } | null>(null);
-  const [selectedColor, setSelectedColor] = useState<{
+  const [selectedSize, setSelectedSize] = useState<string | null>(null);
+  // Use internal state only if parent doesn't control color
+  const [internalColor, setInternalColor] = useState<{
     code: string;
     name: string;
   } | null>(null);
+  const activeColor =
+    selectedColor !== undefined ? selectedColor : internalColor;
+  const setActiveColor = (color: { code: string; name: string }) => {
+    if (onColorChange) {
+      onColorChange(color);
+    } else {
+      setInternalColor(color);
+    }
+  };
   const [variantsData, setVariantsData] = useState<
     VariantObject[] | VariantObject | null
   >(null);
@@ -105,10 +137,7 @@ const Sidebar = ({ products }: { products: Product }) => {
   const [outOfStock, setOutOfStock] = useState<boolean>(false);
   const [selectedVariant, setSelectedVariant] = useState<number | null>(null);
 
-  const sortedVariants = Array.isArray(variantsData)
-    ? [...variantsData].sort((a, b) => Number(a.size) - Number(b.size))
-    : [];
-
+  // All unique colors across all variants
   const uniqueColors = useMemo(() => {
     if (!Array.isArray(variantsData)) return [];
     const colorMap = new Map<string, { code: string; name: string }>();
@@ -123,90 +152,144 @@ const Sidebar = ({ products }: { products: Product }) => {
     return Array.from(colorMap.values());
   }, [variantsData]);
 
+  // ALL unique sizes across all variants (never filtered)
+  const allUniqueSizes = useMemo(() => {
+    if (!Array.isArray(variantsData)) return [];
+    const sizeSet = new Set<string>();
+    variantsData.forEach((v) => {
+      if (v.size) sizeSet.add(v.size);
+    });
+    return Array.from(sizeSet).sort(
+      (a, b) => getSizeOrder(a) - getSizeOrder(b),
+    );
+  }, [variantsData]);
+
+  // Sizes that exist for the currently selected color (for highlighting)
+  const sizesForSelectedColor = useMemo(() => {
+    if (!Array.isArray(variantsData) || !activeColor) return new Set<string>();
+    const sizes = new Set<string>();
+    variantsData.forEach((v) => {
+      if (v.color_code === activeColor.code && v.size) {
+        sizes.add(v.size);
+      }
+    });
+    return sizes;
+  }, [variantsData, activeColor]);
+
+  // Colors that exist for the currently selected size (for highlighting)
+  const colorsForSelectedSize = useMemo(() => {
+    if (!Array.isArray(variantsData) || !selectedSize) return new Set<string>();
+    const codes = new Set<string>();
+    variantsData.forEach((v) => {
+      if (v.size === selectedSize && v.color_code) {
+        codes.add(v.color_code);
+      }
+    });
+    return codes;
+  }, [variantsData, selectedSize]);
+
+  // The matched variant based on selected color + size
+  const matchedVariant = useMemo(() => {
+    if (!Array.isArray(variantsData)) return variantsData;
+    if (!activeColor || !selectedSize) return null;
+    return (
+      variantsData.find(
+        (v) => v.color_code === activeColor.code && v.size === selectedSize,
+      ) || null
+    );
+  }, [variantsData, activeColor, selectedSize]);
+
+  // Initialize variants and default selections
   useEffect(() => {
     if (products?.variants) {
-      setVariantsData(products.variants);
       if (!Array.isArray(products.variants)) {
-        setSelectedSize({
-          id: products.variants.id,
-          size: products.variants.size,
-        });
+        setVariantsData(products.variants);
+        setSelectedSize(products.variants.size);
+      } else {
+        setVariantsData(products.variants);
+        const firstVariant = products.variants[0];
+        if (firstVariant) {
+          if (firstVariant.color_code && firstVariant.color_name) {
+            setActiveColor({
+              code: firstVariant.color_code,
+              name: firstVariant.color_name,
+            });
+          }
+          if (firstVariant.size) {
+            setSelectedSize(firstVariant.size);
+          }
+        }
+        const anyOutOfStock = products.variants.some((v) => v.stock === 0);
+        setOutOfStock(anyOutOfStock);
       }
     }
   }, [products]);
 
+  // When color changes, auto-switch size if current combo doesn't exist
   useEffect(() => {
-    if (products?.variants && Array.isArray(products.variants)) {
-      const variants = products.variants;
-      const sortedVariants = [...variants].sort(
-        (a, b) => Number(a.size) - Number(b.size)
-      );
-      setVariantsData(sortedVariants);
-      if (sortedVariants.length > 0) {
-        setSelectedSize({
-          id: sortedVariants[0].id,
-          size: sortedVariants[0].size,
-        });
-        if (sortedVariants[0].color_code && sortedVariants[0].color_name) {
-          setSelectedColor({
-            code: sortedVariants[0].color_code,
-            name: sortedVariants[0].color_name,
-          });
-        }
-      }
-      const anyOutOfStock = sortedVariants.some(
-        (variant) => variant.stock === 0
-      );
-      setOutOfStock(anyOutOfStock);
+    if (!Array.isArray(variantsData) || !activeColor) return;
+    const sizesForColor = variantsData
+      .filter((v) => v.color_code === activeColor.code)
+      .map((v) => v.size);
+    if (!selectedSize || !sizesForColor.includes(selectedSize)) {
+      const sorted = sizesForColor
+        .filter((s): s is string => s !== null)
+        .sort((a, b) => getSizeOrder(a) - getSizeOrder(b));
+      setSelectedSize(sorted[0] || null);
     }
-  }, [products]);
+  }, [activeColor, variantsData]);
 
+  // When size changes, auto-switch color if current combo doesn't exist
   useEffect(() => {
-    if (Array.isArray(variantsData)) {
-      const selectedVariant = variantsData.find(
-        (variant) => {
-          const sizeMatch = selectedSize ? variant.id === selectedSize.id : !variant.size;
-          const colorMatch = selectedColor ? variant.color_code === selectedColor.code : !variant.color_code;
-          return sizeMatch && colorMatch;
-        }
+    if (!Array.isArray(variantsData) || !selectedSize) return;
+    const colorsForSize = variantsData
+      .filter((v) => v.size === selectedSize)
+      .map((v) => v.color_code);
+    if (!activeColor || !colorsForSize.includes(activeColor.code)) {
+      const firstMatch = variantsData.find(
+        (v) => v.size === selectedSize && v.color_code && v.color_name,
       );
-      
-      if (selectedVariant) {
-        setSelectedVariant(selectedVariant.id);
-        setSelectedVariantOutOfStock(selectedVariant.stock === 0);
+      if (firstMatch && firstMatch.color_code && firstMatch.color_name) {
+        setActiveColor({
+          code: firstMatch.color_code,
+          name: firstMatch.color_name,
+        });
       }
-    } else if (variantsData) {
+    }
+  }, [selectedSize, variantsData]);
+
+  // Update variant out-of-stock state based on matched variant
+  useEffect(() => {
+    if (matchedVariant) {
+      setSelectedVariant(matchedVariant.id);
+      setSelectedVariantOutOfStock(matchedVariant.stock === 0);
+    } else if (variantsData && !Array.isArray(variantsData)) {
+      setSelectedVariant(variantsData.id);
       setSelectedVariantOutOfStock(variantsData.stock === 0);
+    } else {
+      setSelectedVariant(null);
+      setSelectedVariantOutOfStock(false);
     }
-  }, [selectedSize, selectedColor, variantsData]);
+  }, [matchedVariant, variantsData]);
 
-  const getVariantData = useCallback(
-    (
-      variantsData: VariantObject[] | VariantObject | null,
-      key: keyof VariantObject,
-      index: number = 0
-    ): any => {
-      if (Array.isArray(variantsData)) {
-        const variant = variantsData.find((variant) => variant.id === index);
-        return variant ? variant[key] : null;
-      } else if (variantsData) {
-        return variantsData[key];
-      }
-      return null;
-    },
-    []
-  );
-
-  const convertedPrice = getVariantData(
-    variantsData,
-    "price",
-    selectedSize?.id
-  );
-  const discount = getVariantData(variantsData, "discount", selectedSize?.id);
-  const stock = getVariantData(variantsData, "stock", selectedSize?.id);
+  const convertedPrice = matchedVariant
+    ? Number(matchedVariant.price)
+    : !Array.isArray(variantsData) && variantsData
+      ? Number(variantsData.price)
+      : 0;
+  const discount = matchedVariant
+    ? Number(matchedVariant.discount)
+    : !Array.isArray(variantsData) && variantsData
+      ? Number(variantsData.discount)
+      : 0;
+  const stock = matchedVariant
+    ? matchedVariant.stock
+    : !Array.isArray(variantsData) && variantsData
+      ? variantsData.stock
+      : 0;
   const finalPrice = useMemo(() => {
     return Number(
-      (convertedPrice - convertedPrice * (discount / 100)).toFixed(2)
+      (convertedPrice - convertedPrice * (discount / 100)).toFixed(2),
     );
   }, [convertedPrice, discount]);
 
@@ -214,18 +297,48 @@ const Sidebar = ({ products }: { products: Product }) => {
     router.push(`/collections?category=${products?.categoryname}`);
   };
 
-  const handleAddToCart = () =>
+  const currentVariantId = matchedVariant
+    ? matchedVariant.id
+    : !Array.isArray(variantsData) && variantsData
+      ? variantsData.id
+      : null;
+
+  // Expose selected color to parent on mount/change
+  useEffect(() => {
+    if (
+      activeColor &&
+      onColorChange &&
+      selectedColor?.code !== activeColor.code
+    ) {
+      onColorChange(activeColor);
+    }
+  }, [activeColor]);
+
+  const handleAddToCart = () => {
+    if (!currentVariantId) {
+      toast.error("Please select a valid size and color combination", {
+        position: "top-center",
+      });
+      return;
+    }
     updateProductList({
       product: products.id,
-      variant: getVariantData(variantsData, "id", selectedSize?.id),
+      variant: currentVariantId,
     });
+  };
 
   const handleenc = () => {
+    if (!currentVariantId) {
+      toast.error("Please select a valid size and color combination", {
+        position: "top-center",
+      });
+      return;
+    }
     if (status) {
       const data = [
         {
           product: products?.id,
-          variant: getVariantData(variantsData, "id", selectedSize?.id),
+          variant: currentVariantId,
           pcs: 1,
         },
       ];
@@ -276,72 +389,81 @@ const Sidebar = ({ products }: { products: Product }) => {
           <CardBody className="flex flex-col p-4 gap-5 flex-initial ">
             {Array.isArray(variantsData) && (
               <>
-                <span className="flex gap-3 flex-col">
-                  <p className="text-sm">Statue Size</p>
-                  <span className="flex gap-2 items-center">
-                    {sortedVariants.map((variant, index) => (
-                      <Button
-                        key={variant.id}
-                        variant={
-                          selectedSize?.id === variant.id
-                            ? "active"
-                            : "secondary"
-                        }
-                        size="sm"
-                        onClick={() =>
-                          setSelectedSize({
-                            id: variant.id,
-                            size: variant.size,
-                          })
-                        }
-                      >
-                        {getSizeCategory(index)}
-                      </Button>
-                    ))}
-                  </span>
-                </span>
                 {uniqueColors.length > 0 && (
                   <span className="flex gap-3 flex-col">
                     <p className="text-sm">Color</p>
                     <span className="flex gap-2 items-center flex-wrap">
-                      {uniqueColors.map((color) => (
-                        <button
-                          key={color.code}
-                          type="button"
-                          onClick={() => setSelectedColor(color)}
-                          className={cn(
-                            "w-10 h-10 rounded-full border-2 flex items-center justify-center transition-all",
-                            selectedColor?.code === color.code
-                              ? "border-neutral-900 dark:border-neutral-100 ring-2 ring-offset-2 ring-neutral-900 dark:ring-neutral-100"
-                              : "border-neutral-300 dark:border-neutral-700 hover:border-neutral-500"
-                          )}
-                          style={{ backgroundColor: color.code }}
-                          title={color.name}
-                          aria-label={`Select ${color.name} color`}
-                        >
-                          {selectedColor?.code === color.code && (
-                            <svg
-                              className="w-5 h-5"
-                              style={{
-                                color:
-                                  parseInt(color.code.slice(1), 16) > 0xffffff / 2
-                                    ? "#000000"
-                                    : "#ffffff",
-                              }}
-                              fill="none"
-                              strokeWidth={3}
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                d="M5 13l4 4L19 7"
-                              />
-                            </svg>
-                          )}
-                        </button>
-                      ))}
+                      {uniqueColors.map((color) => {
+                        const isActive = activeColor?.code === color.code;
+                        const hasCurrentSize =
+                          !selectedSize ||
+                          colorsForSelectedSize.has(color.code);
+                        return (
+                          <button
+                            key={color.code}
+                            type="button"
+                            onClick={() => setActiveColor(color)}
+                            className={cn(
+                              "w-10 h-10 rounded-full border-2 flex items-center justify-center transition-all",
+                              isActive
+                                ? "border-neutral-900 dark:border-neutral-100 ring-2 ring-offset-2 ring-neutral-900 dark:ring-neutral-100"
+                                : "border-neutral-300 dark:border-neutral-700 hover:border-neutral-500",
+                              !hasCurrentSize && !isActive && "opacity-60",
+                            )}
+                            style={{ backgroundColor: color.code }}
+                            title={color.name}
+                            aria-label={`Select ${color.name} color`}
+                          >
+                            {isActive && (
+                              <svg
+                                className="w-5 h-5"
+                                style={{
+                                  color:
+                                    parseInt(color.code.slice(1), 16) >
+                                    0xffffff / 2
+                                      ? "#000000"
+                                      : "#ffffff",
+                                }}
+                                fill="none"
+                                strokeWidth={3}
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  d="M5 13l4 4L19 7"
+                                />
+                              </svg>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </span>
+                  </span>
+                )}
+                {allUniqueSizes.length > 0 && (
+                  <span className="flex gap-3 flex-col">
+                    <p className="text-sm">Statue Size</p>
+                    <span className="flex gap-2 items-center flex-wrap">
+                      {allUniqueSizes.map((size) => {
+                        const isActive = selectedSize === size;
+                        const hasCurrentColor =
+                          !activeColor || sizesForSelectedColor.has(size);
+                        return (
+                          <Button
+                            key={size}
+                            variant={isActive ? "active" : "secondary"}
+                            size="sm"
+                            onClick={() => setSelectedSize(size)}
+                            className={cn(
+                              !hasCurrentColor && !isActive && "opacity-60",
+                            )}
+                          >
+                            {size}
+                          </Button>
+                        );
+                      })}
                     </span>
                   </span>
                 )}
@@ -353,20 +475,20 @@ const Sidebar = ({ products }: { products: Product }) => {
                       <span className="flex justify-between items-center">
                         <p className="text-xs text-zinc-400">Statue Size</p>
                         <p className="text-xs text-zinc-400">
-                          {selectedSize?.size} cm
+                          {selectedSize} cm
                         </p>
                       </span>
                     )}
-                    {selectedColor && (
+                    {activeColor && (
                       <span className="flex justify-between items-center mt-1">
                         <p className="text-xs text-zinc-400">Color</p>
                         <span className="flex items-center gap-2">
                           <div
                             className="w-4 h-4 rounded-full border border-neutral-300 dark:border-neutral-700"
-                            style={{ backgroundColor: selectedColor.code }}
+                            style={{ backgroundColor: activeColor.code }}
                           />
                           <p className="text-xs text-zinc-400">
-                            {selectedColor.name}
+                            {activeColor.name}
                           </p>
                         </span>
                       </span>
@@ -387,13 +509,11 @@ const Sidebar = ({ products }: { products: Product }) => {
             </span>
             <span className="w-full flex gap-3 items-center">
               <span className="flex gap-2">
-                <p className="text-lg">
-                  {discount > 0 && `रु ${finalPrice}`}
-                </p>
+                <p className="text-lg">{discount > 0 && `रु ${finalPrice}`}</p>
                 <p
                   className={cn(
                     "text-lg",
-                    discount > 0 && "text-neutral-500 line-through"
+                    discount > 0 && "text-neutral-500 line-through",
                   )}
                 >
                   रु {convertedPrice}
@@ -422,11 +542,11 @@ const Sidebar = ({ products }: { products: Product }) => {
               </span>
             ) : (
               <>
-                {selectedSize && (
+                {currentVariantId && (
                   <NotifyForm
                     product={products.id}
                     stock={stock}
-                    selectedVariant={selectedSize.id}
+                    selectedVariant={currentVariantId}
                   />
                 )}
               </>
@@ -477,7 +597,7 @@ const NotifyForm = ({ product, selectedVariant, stock }: NotifyFormProps) => {
   const [notifyadded, setNotifyAdded] = useState<boolean>(false);
   const { data: Notify, isLoading: loading } = useGetnotifyuserQuery(
     { product: product, variant: selectedVariant, token: accessToken },
-    { skip: !product || !selectedVariant || stock !== 0 }
+    { skip: !product || !selectedVariant || stock !== 0 },
   );
   useEffect(() => {
     setNotifyAdded(Notify?.requested || false);
@@ -549,7 +669,7 @@ const NotifyForm = ({ product, selectedVariant, stock }: NotifyFormProps) => {
         }
         className={cn(
           "dark:bg-custom/40 border-0 bg-white outline-none focus:ring-0 focus:border-transparent",
-          notifyadded && "border-ring ring-2 ring-orange-400/50 ring-offset-2"
+          notifyadded && "border-ring ring-2 ring-orange-400/50 ring-offset-2",
         )}
         disabled={notifyadded}
       />
@@ -558,7 +678,7 @@ const NotifyForm = ({ product, selectedVariant, stock }: NotifyFormProps) => {
           color="default"
           variant="custom"
           className={cn(
-            "w-full h-[40px] text-base disabled:cursor-not-allowed"
+            "w-full h-[40px] text-base disabled:cursor-not-allowed",
           )}
           type="submit"
           disabled={notifyadded || !emailValue || !!errors.email}

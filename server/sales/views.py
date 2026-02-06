@@ -63,6 +63,8 @@ def get_invoice_details(sale, user_email):
 
 
 class SalesViewSet(viewsets.ModelViewSet):
+    """Sales ViewSet with delete restricted to cancelled/unpaid orders only."""
+
     queryset = Sales.objects.all().order_by("-id")
     renderer_classes = [UserRenderer]
     permission_classes = [IsAuthenticated]
@@ -221,6 +223,31 @@ class SalesViewSet(viewsets.ModelViewSet):
                 send_email(subject, updated_instance.costumer_name.email, body)
             except Exception as e:
                 logger.error(f"Failed to send delivery delay email: {e}")
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+
+        if instance.status not in ("cancelled", "unpaid"):
+            return Response(
+                {"error": "Only cancelled or unpaid orders can be deleted."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        transactionuid = instance.transactionuid
+
+        # Restore stock for cancelled orders that had stock deducted
+        if instance.status == "cancelled":
+            for sp in instance.products.select_related("variant").all():
+                if sp.variant:
+                    sp.variant.stock += int(sp.qty)
+                    sp.variant.save(update_fields=["stock"])
+
+        instance.delete()
+
+        return Response(
+            {"msg": f"Order #{transactionuid} deleted successfully."},
+            status=status.HTTP_200_OK,
+        )
 
     @action(detail=False, methods=["get"], url_path="status/(?P<status_param>[^/.]+)")
     def filter_by_status(self, request, status_param=None):

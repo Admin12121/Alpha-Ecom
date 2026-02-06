@@ -39,7 +39,7 @@ export function ReviewSheet({ slug, rating, product }: ReviewSheetProps) {
   const [filter, setFilter] = useState("relevant");
   const { data, isLoading } = useGetReviewQuery(
     { product_slug: slug, page: page, star, filter },
-    { skip: !slug }
+    { skip: !slug },
   );
   const [reviewData, setReviewData] = useState<Reviews[] | null>(null);
 
@@ -137,7 +137,7 @@ export function ReviewSheet({ slug, rating, product }: ReviewSheetProps) {
                       <p className="text-xs">
                         {new Date(review.created_at).toLocaleDateString(
                           "en-US",
-                          { month: "short", year: "numeric", day: "numeric" }
+                          { month: "short", year: "numeric", day: "numeric" },
                         )}
                       </p>
                     </CardHeader>
@@ -180,8 +180,12 @@ export function ReviewSheet({ slug, rating, product }: ReviewSheetProps) {
                         <Separator />
                         {review.user ? (
                           <span className="flex flex-row justify-between">
-                            <p className="text-sm font-normal">{review.user}.</p>
-                            <p className="text-sm font-normal flex gap-1 items-center"><CircleCheck className="w-4 h-4"/> Verified Buyer</p>
+                            <p className="text-sm font-normal">
+                              {review.user}.
+                            </p>
+                            <p className="text-sm font-normal flex gap-1 items-center">
+                              <CircleCheck className="w-4 h-4" /> Verified Buyer
+                            </p>
                           </span>
                         ) : (
                           ""
@@ -230,5 +234,9 @@ const ReviewsCard = ({
         <Spinner />
       </div>
     );
-  return <div className="flex flex-col gap-3 h-[79dvh] overflow-y-auto">{children}</div>;
+  return (
+    <div className="flex flex-col gap-3 h-[calc(98dvh_-_220px)] overflow-y-auto">
+      {children}
+    </div>
+  );
 };
