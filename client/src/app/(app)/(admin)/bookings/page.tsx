@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -203,36 +203,16 @@ function MeasurementGrid({
   );
 }
 
-// Read-only measurement display
-function MeasurementDisplay({
-  fields,
-  measurements,
-  title,
-}: {
-  fields: string[];
-  measurements?: Record<string, Record<string, string>>;
-  title: string;
-}) {
-  if (!measurements || Object.keys(measurements).length === 0) {
-    return (
-      <div className="text-center py-4 text-muted-foreground text-sm">
-        No {title.toLowerCase()} measurements recorded
-      </div>
-    );
-  }
-
-  return (
-    <div className="grid grid-cols-4 gap-2 text-sm">
-      {fields.map((f) => (
-        <div key={f} className="flex justify-between border-b pb-1">
-          <span className="font-medium">{f}:</span>
-          <span className="text-muted-foreground">
-            {measurements[f]?.A || "-"} / {measurements[f]?.B || "-"}
-          </span>
-        </div>
-      ))}
-    </div>
-  );
+// Helper to format 24h time string to 12h AM/PM
+function formatTimeAMPM(time: string): string {
+  if (!time) return "";
+  // Handle "HH:MM:SS" or "HH:MM"
+  const parts = time.split(":");
+  let hours = parseInt(parts[0], 10);
+  const minutes = parts[1] || "00";
+  const ampm = hours >= 12 ? "PM" : "AM";
+  hours = hours % 12 || 12;
+  return `${String(hours).padStart(2, "0")}:${minutes} ${ampm}`;
 }
 
 export default function AdminBookingsPage() {
@@ -244,6 +224,7 @@ export default function AdminBookingsPage() {
   );
   const [deleteBookingId, setDeleteBookingId] = useState<number | null>(null);
   const [lookupQuery, setLookupQuery] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
 
   const {
     data: bookings,
@@ -260,11 +241,17 @@ export default function AdminBookingsPage() {
 
   const { data: stats } = useGetBookingStatsQuery({ token }, { skip: !token });
 
-  const { data: selectedBooking, isLoading: isLoadingBooking } =
-    useGetBookingQuery(
-      { id: selectedBookingId, token },
-      { skip: !selectedBookingId || !token },
-    );
+  const {
+    data: selectedBooking,
+    isLoading: isLoadingBooking,
+    refetch: refetchBooking,
+  } = useGetBookingQuery(
+    { id: selectedBookingId, token },
+    {
+      skip: !selectedBookingId || !token,
+      refetchOnMountOrArgChange: true,
+    },
+  );
 
   const { data: lookupResults } = useCustomerLookupQuery(
     { query: lookupQuery, token },
@@ -286,18 +273,28 @@ export default function AdminBookingsPage() {
     },
   });
 
-  // Populate form when booking is loaded
-  const populateForm = (booking: Booking) => {
-    form.reset({
-      status: booking.status as any,
-      delivery_date: booking.delivery_date || "",
-      admin_message: booking.admin_message || "",
-      coat_measurements: booking.coat_measurements || {},
-      pant_measurements: booking.pant_measurements || {},
-      shirt_measurements: booking.shirt_measurements || {},
-      send_email: false,
-    });
-  };
+  // Populate form when the fetched selectedBooking data arrives/changes
+  const populateForm = useCallback(
+    (booking: Booking) => {
+      form.reset({
+        status: booking.status as any,
+        delivery_date: booking.delivery_date || "",
+        admin_message: booking.admin_message || "",
+        coat_measurements: booking.coat_measurements || {},
+        pant_measurements: booking.pant_measurements || {},
+        shirt_measurements: booking.shirt_measurements || {},
+        send_email: false,
+      });
+    },
+    [form],
+  );
+
+  // Auto-populate form when selectedBooking is fetched from API
+  useEffect(() => {
+    if (selectedBooking) {
+      populateForm(selectedBooking);
+    }
+  }, [selectedBooking, populateForm]);
 
   const handleMeasurementChange = (
     type: "coat" | "pant" | "shirt",
@@ -329,6 +326,7 @@ export default function AdminBookingsPage() {
   const handleSaveMeasurements = async (data: MeasurementFormData) => {
     if (!selectedBookingId) return;
 
+    setIsSaving(true);
     try {
       await updateMeasurements({
         id: selectedBookingId,
@@ -339,10 +337,13 @@ export default function AdminBookingsPage() {
       if (data.send_email) {
         toast.success("Email sent to customer");
       }
-      setSelectedBookingId(null);
+      // Explicitly refetch both the list and the detail to ensure fresh data
       refetch();
+      refetchBooking();
     } catch (error) {
       toast.error("Failed to save measurements");
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -352,7 +353,6 @@ export default function AdminBookingsPage() {
       await deleteBooking({ id: deleteBookingId, token }).unwrap();
       toast.success("Booking deleted");
       setDeleteBookingId(null);
-      refetch();
     } catch (error) {
       toast.error("Failed to delete booking");
     }
@@ -360,7 +360,7 @@ export default function AdminBookingsPage() {
 
   const openBookingDetail = (booking: Booking) => {
     setSelectedBookingId(booking.id);
-    populateForm(booking);
+    // Form will auto-populate via useEffect when selectedBooking is fetched
   };
 
   return (
@@ -543,7 +543,7 @@ export default function AdminBookingsPage() {
                             new Date(b.preferred_date),
                             "MMM dd, yyyy",
                           )}{" "}
-                          {b.preferred_time}
+                          {formatTimeAMPM(b.preferred_time)}
                         </span>
                         <Badge variant="outline" className="w-fit text-xs mt-1">
                           {b.measurement_type === "in_store"
@@ -723,7 +723,7 @@ export default function AdminBookingsPage() {
                             Time
                           </Label>
                           <p className="font-medium">
-                            {selectedBooking.preferred_time}
+                            {formatTimeAMPM(selectedBooking.preferred_time)}
                           </p>
                         </div>
                         <div className="space-x-2">
@@ -763,53 +763,6 @@ export default function AdminBookingsPage() {
                       )}
                     </CardContent>
                   </Card>
-
-                  {/* Current Measurements Summary */}
-                  {selectedBooking.has_measurements && (
-                    <Card>
-                      <CardHeader className="pb-2">
-                        <CardTitle className="text-lg">
-                          Recorded Measurements
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <Tabs defaultValue="coat" className="w-full">
-                          <TabsList className="grid grid-cols-3 h-8">
-                            <TabsTrigger value="coat" className="text-xs">
-                              Coat
-                            </TabsTrigger>
-                            <TabsTrigger value="pant" className="text-xs">
-                              Pant
-                            </TabsTrigger>
-                            <TabsTrigger value="shirt" className="text-xs">
-                              Shirt
-                            </TabsTrigger>
-                          </TabsList>
-                          <TabsContent value="coat" className="mt-2">
-                            <MeasurementDisplay
-                              fields={coatFields}
-                              measurements={selectedBooking.coat_measurements}
-                              title="Coat"
-                            />
-                          </TabsContent>
-                          <TabsContent value="pant" className="mt-2">
-                            <MeasurementDisplay
-                              fields={pantFields}
-                              measurements={selectedBooking.pant_measurements}
-                              title="Pant"
-                            />
-                          </TabsContent>
-                          <TabsContent value="shirt" className="mt-2">
-                            <MeasurementDisplay
-                              fields={shirtFields}
-                              measurements={selectedBooking.shirt_measurements}
-                              title="Shirt"
-                            />
-                          </TabsContent>
-                        </Tabs>
-                      </CardContent>
-                    </Card>
-                  )}
                 </div>
 
                 {/* Right Side - Admin Form (Editable) */}

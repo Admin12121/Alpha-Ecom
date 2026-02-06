@@ -20,10 +20,6 @@ const sidebarNavItems = [
     href: "/shipping",
   },
   {
-    title: "Notifications",
-    href: "/notification",
-  },
-  {
     title: "My Reviews",
     href: "/reviews",
   },

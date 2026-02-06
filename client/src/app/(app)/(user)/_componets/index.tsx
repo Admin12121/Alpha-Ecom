@@ -18,7 +18,10 @@ import {
   ProductSkeleton,
   Skeleton,
 } from "@/components/global/product-card";
-import { useProductsViewQuery, useGetlayoutQuery } from "@/lib/store/Service/api";
+import {
+  useProductsViewQuery,
+  useGetlayoutQuery,
+} from "@/lib/store/Service/api";
 import LogoAnimation, {
   AnimatedNumber,
 } from "@/components/global/logo_animation";
@@ -62,11 +65,7 @@ interface SiteConfig {
   messages: Messages;
 }
 
-const LandingPage = ({
-  userCookie,
-}: {
-  userCookie: boolean;
-}) => {
+const LandingPage = ({ userCookie }: { userCookie: boolean }) => {
   const { data: layoutData, isLoading: isLayoutLoading } = useGetlayoutQuery({
     layoutslug: "home",
   });
@@ -84,7 +83,7 @@ const LandingPage = ({
         events: [],
         messages: { message: "", date: "" },
       },
-    [layoutData]
+    [layoutData],
   );
 
   const { data, isLoading: loading } = useProductsViewQuery({ page_size: 8 });
@@ -124,7 +123,7 @@ const LandingPage = ({
         <div
           className={cn(
             "fixed h-dvh z-50 inset-0 flex justify-center items-center transition-opacity duration-500 backdrop-blur-3xl bg-neutral-950/90",
-            fadeOut ? "opacity-0 blur-lg" : "opacity-100"
+            fadeOut ? "opacity-0 blur-lg" : "opacity-100",
           )}
         >
           <LogoAnimation className="h-[85px] font-normal flex">
@@ -140,7 +139,7 @@ const LandingPage = ({
       )}
       <div
         className={cn(
-          "w-full h-[45dvh] md:h-[50dvh]  flex flex-col md:flex-row items-center justify-center gap-3 transition-all duration-500"
+          "w-full h-[45dvh] md:h-[50dvh]  flex flex-col md:flex-row items-center justify-center gap-3 transition-all duration-500",
         )}
       >
         <div className="w-full md:w-[75%] h-full rounded-3xl relative">
@@ -192,7 +191,7 @@ const LandingPage = ({
                 key={index}
                 className={cn(
                   "w-full rounded-md overflow-hidden relative h-full",
-                  siteConfig.events.length === 1 ? "md:h-full" : "md:h-1/2"
+                  siteConfig.events.length === 1 ? "md:h-full" : "md:h-1/2",
                 )}
               >
                 <div
@@ -229,7 +228,7 @@ const LandingPage = ({
             <div
               className={cn(
                 "grid grid-cols-1 md:grid-cols-2 gap-2 lg:grid-cols-3 xl:grid-cols-4 lg:gap-4 transition-opacity motion-reduce:transition-none w-full",
-                loading && "pointer-events-none opacity-50 blur-sm"
+                loading && "pointer-events-none opacity-50 blur-sm",
               )}
             >
               {products.map((product, index) => (
@@ -249,7 +248,7 @@ const LandingPage = ({
                     className={cn(
                       "relative rounded-lg overflow-hidden group grow isolation-auto z-10 svelte-483qmb p-1",
                       "bg-neutral-200/50 hover:bg-white/50 dark:bg-neutral-950/50 dark:hover:bg-neutral-950 transition-all duration-300 cursor-pointer",
-                      "flex flex-col gap-1 justify-center items-center backdrop-blur-2xl"
+                      "flex flex-col gap-1 justify-center items-center backdrop-blur-2xl",
                     )}
                   >
                     <h1>Shop Everyday</h1>
@@ -288,13 +287,13 @@ const LandingPage = ({
           <div className="relative lg:!h-[600px]">
             <Image
               alt="store"
-              src={"/store.jpg"}
+              src={"/store.webp"}
               priority
               quality={100}
               width={700}
               height={400}
               sizes="100vw"
-              className="w-dvw object-cover relative z-10 lg:!h-[600px] rounded-xl opacity-90"
+              className="w-dvw object-cover background-center relative z-10 lg:!h-[600px] rounded-xl opacity-90"
             />
             <div className="absolute flex -z-[1px] top-0 w-full h-full animate-pulse bg-neutral-200 dark:bg-neutral-950/80 rounded-xl opacity-90"></div>
             <Button className="absolute left-2 bottom-2 backdrop-blur-sm dark:bg-white/50 bg-neutral-900/50">

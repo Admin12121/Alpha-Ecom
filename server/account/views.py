@@ -3,15 +3,6 @@ from datetime import datetime
 
 import requests
 from decouple import config
-from rest_framework import status, viewsets
-from rest_framework.decorators import action
-from rest_framework.filters import OrderingFilter, SearchFilter
-from rest_framework.pagination import PageNumberPagination
-from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
-from rest_framework.response import Response
-from rest_framework.views import APIView
-from rest_framework_simplejwt.tokens import RefreshToken
-
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.files.base import ContentFile
@@ -24,6 +15,14 @@ from django.utils import timezone
 from django.utils.encoding import force_bytes, force_str
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 from django.views import View
+from rest_framework import status, viewsets
+from rest_framework.decorators import action
+from rest_framework.filters import OrderingFilter, SearchFilter
+from rest_framework.pagination import PageNumberPagination
+from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.views import APIView
+from rest_framework_simplejwt.tokens import RefreshToken
 
 from server.utils.encryption import encrypt_response
 
@@ -73,16 +72,18 @@ class NewsLetterViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         instance = serializer.save()
-        
+
         try:
             subject = "Welcome to Alphasuits Newsletter 💖"
             body = render_to_string("newsletter_welcome.html")
             send_email(subject, instance.email, body)
         except Exception as e:
             print(f"Failed to send newsletter welcome email: {e}")
-            
+
         headers = self.get_success_headers(serializer.data)
-        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+        return Response(
+            serializer.data, status=status.HTTP_201_CREATED, headers=headers
+        )
 
 
 class UserViewSet(viewsets.ModelViewSet):
@@ -182,9 +183,9 @@ class UserViewSet(viewsets.ModelViewSet):
                         self._save_user_avatar(user, avatar_url, username)
                     subject = ("Your account is now Active",)
                     body = render_to_string(
-                            "welcome.html", {"email": email, "username": username}
-                        )
-                    
+                        "welcome.html", {"email": email, "username": username}
+                    )
+
                     send_email(subject, email, body)
 
                 tokens = get_tokens_for_user(user)
@@ -331,7 +332,6 @@ class UserActivationView(APIView):
 
 
 class PasswordResetView(APIView):
-
     def post(self, request):
         email = request.data.get("email")
         try:
@@ -346,9 +346,7 @@ class PasswordResetView(APIView):
             user.otp_created_at = timezone.now()
             user.save()
             subject = "Password Reset OTP"
-            body = render_to_string(
-                "reset_password.html",{'otp': otp}
-            )
+            body = render_to_string("reset_password.html", {"otp": otp})
             send_email(subject, email, body)
             return Response(
                 {"message": "OTP sent to your email", "uid": uid},
@@ -607,7 +605,6 @@ class SiteViewLogViewSet(viewsets.ModelViewSet):
 
 
 class SiteViewLogAnalyticsView(View):
-
     def get_permissions(self):
         if self.request.method == "GET":
             self.permission_classes = [IsAuthenticated, IsAdminUser]
@@ -743,6 +740,24 @@ class SearchView(viewsets.ModelViewSet):
 
         serializer = self.get_serializer(search_history)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    @action(detail=False, methods=["get"], url_path="popular-keywords")
+    def popular_keywords(self, request):
+        past_month = timezone.now() - timezone.timedelta(days=30)
+        keywords = (
+            SearchHistory.objects.filter(search_date__gte=past_month)
+            .values("keyword")
+            .annotate(count=Count("keyword"))
+            .order_by("-count")[:10]
+        )
+        if not keywords:
+            keywords = (
+                SearchHistory.objects.values("keyword")
+                .annotate(count=Count("keyword"))
+                .order_by("-count")[:10]
+            )
+        keyword_list = [entry["keyword"] for entry in keywords]
+        return Response(keyword_list, status=status.HTTP_200_OK)
 
 
 class DeliveryAddressView(viewsets.ModelViewSet):

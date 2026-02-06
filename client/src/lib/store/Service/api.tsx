@@ -2,7 +2,7 @@ import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
 
 const createHeaders = (
   token?: string,
-  contentType: string = "application/json"
+  contentType: string = "application/json",
 ) => {
   const headers: HeadersInit = { "Content-type": contentType };
   if (token) {
@@ -12,7 +12,7 @@ const createHeaders = (
 };
 
 const buildQueryParams = (
-  params: Record<string, string | number | string[] | undefined>
+  params: Record<string, string | number | string[] | undefined>,
 ) => {
   const queryParams = Object.entries(params)
     .filter(
@@ -21,7 +21,7 @@ const buildQueryParams = (
         value !== null &&
         value !== "" &&
         value !== 0 &&
-        !(Array.isArray(value) && value.length === 0)
+        !(Array.isArray(value) && value.length === 0),
     )
     .map(([key, value]) => `${key}=${value}`)
     .join("&");
@@ -33,7 +33,7 @@ export const userAuthapi = createApi({
   baseQuery: fetchBaseQuery({
     baseUrl: `${process.env.NEXT_PUBLIC_API_URL}`,
   }),
-  tagTypes: ["LoggedUser", "Cart"],
+  tagTypes: ["LoggedUser", "Cart", "Bookings", "BookingDetail", "BookingStats"],
   endpoints: (builder) => ({
     userDevice: builder.mutation({
       query: (user) => ({
@@ -46,13 +46,14 @@ export const userAuthapi = createApi({
     allUsers: builder.query({
       query: ({ username, search, rowsperpage, page, exclude_by, token }) => {
         return {
-          url: `api/accounts/admin-users/${username ? `by-username/${username}/` : ""
-            }${buildQueryParams({
-              search,
-              page_size: rowsperpage,
-              page,
-              exclude_by,
-            })}`,
+          url: `api/accounts/admin-users/${
+            username ? `by-username/${username}/` : ""
+          }${buildQueryParams({
+            search,
+            page_size: rowsperpage,
+            page,
+            exclude_by,
+          })}`,
           method: "GET",
           headers: createHeaders(token),
         };
@@ -209,24 +210,27 @@ export const userAuthapi = createApi({
     }),
     productsByIds: builder.query({
       query: ({ ids, all }) => ({
-        url: `api/products/get_products_by_ids/?ids=${ids}${all ? "&all=true" : ""
-          }`,
+        url: `api/products/get_products_by_ids/?ids=${ids}${
+          all ? "&all=true" : ""
+        }`,
         method: "GET",
         headers: createHeaders(),
       }),
     }),
     checkout_products: builder.query({
       query: ({ ids, all, token }) => ({
-        url: `api/products/products/checkout_products/?ids=${ids}${all ? "&all=true" : ""
-          }`,
+        url: `api/products/products/checkout_products/?ids=${ids}${
+          all ? "&all=true" : ""
+        }`,
         method: "GET",
         headers: createHeaders(token),
       }),
     }),
     recommendedProductsView: builder.query({
       query: ({ product_id, token }) => ({
-        url: `api/products/recommendations/${product_id ? `?product_id=${product_id}` : ""
-          }`,
+        url: `api/products/recommendations/${
+          product_id ? `?product_id=${product_id}` : ""
+        }`,
         method: "GET",
         headers: createHeaders(token),
       }),
@@ -323,6 +327,13 @@ export const userAuthapi = createApi({
           headers: createHeaders(),
         };
       },
+    }),
+    popularKeywords: builder.query({
+      query: () => ({
+        url: "api/accounts/search/popular-keywords/",
+        method: "GET",
+        headers: createHeaders(),
+      }),
     }),
     categoryView: builder.query({
       query: () => ({
@@ -524,12 +535,13 @@ export const userAuthapi = createApi({
     }),
     getOrders: builder.query({
       query: ({ token, status, search, rowsperpage, page }) => ({
-        url: `api/sales/sales/${status ? `status/${status}/` : ""
-          }${buildQueryParams({
-            search,
-            page_size: rowsperpage,
-            page,
-          })}`,
+        url: `api/sales/sales/${
+          status ? `status/${status}/` : ""
+        }${buildQueryParams({
+          search,
+          page_size: rowsperpage,
+          page,
+        })}`,
         method: "GET",
         headers: createHeaders(token),
       }),
@@ -653,11 +665,20 @@ export const userAuthapi = createApi({
 
     // Get all bookings (admin)
     getBookings: builder.query({
-      query: ({ token, status, measurement_type, search, start_date, end_date, page }) => ({
+      query: ({
+        token,
+        status,
+        measurement_type,
+        search,
+        start_date,
+        end_date,
+        page,
+      }) => ({
         url: `api/booking/bookings/${buildQueryParams({ status, measurement_type, search, start_date, end_date, page })}`,
         method: "GET",
         headers: createHeaders(token),
       }),
+      providesTags: ["Bookings"],
     }),
 
     // Get single booking (admin)
@@ -667,6 +688,9 @@ export const userAuthapi = createApi({
         method: "GET",
         headers: createHeaders(token),
       }),
+      providesTags: (_result: any, _error: any, arg: any) => [
+        { type: "BookingDetail" as const, id: arg.id },
+      ],
     }),
 
     // Update booking (admin)
@@ -677,6 +701,11 @@ export const userAuthapi = createApi({
         body: data,
         headers: createHeaders(token),
       }),
+      invalidatesTags: (_result: any, _error: any, arg: any) => [
+        "Bookings",
+        { type: "BookingDetail" as const, id: arg.id },
+        "BookingStats",
+      ],
     }),
 
     // Update booking status (admin)
@@ -687,6 +716,11 @@ export const userAuthapi = createApi({
         body: { status },
         headers: createHeaders(token),
       }),
+      invalidatesTags: (_result: any, _error: any, arg: any) => [
+        "Bookings",
+        { type: "BookingDetail" as const, id: arg.id },
+        "BookingStats",
+      ],
     }),
 
     // Update measurements for a booking (admin)
@@ -697,6 +731,11 @@ export const userAuthapi = createApi({
         body: data,
         headers: createHeaders(token),
       }),
+      invalidatesTags: (_result: any, _error: any, arg: any) => [
+        "Bookings",
+        { type: "BookingDetail" as const, id: arg.id },
+        "BookingStats",
+      ],
     }),
 
     // Delete booking (admin)
@@ -706,6 +745,7 @@ export const userAuthapi = createApi({
         method: "DELETE",
         headers: createHeaders(token),
       }),
+      invalidatesTags: ["Bookings", "BookingStats"],
     }),
 
     // Get booking stats (admin)
@@ -715,6 +755,7 @@ export const userAuthapi = createApi({
         method: "GET",
         headers: createHeaders(token),
       }),
+      providesTags: ["BookingStats"],
     }),
 
     // Customer lookup (admin)
@@ -766,6 +807,7 @@ export const {
   useCartDeleteMutation,
   useClearCartMutation,
   useSearchPostMutation,
+  usePopularKeywordsQuery,
   useCategoryViewQuery,
   useGetCategoryQuery,
   useAddCategoryMutation,
@@ -815,5 +857,3 @@ export const {
   useCustomerLookupQuery,
   useGenerateBillNumberQuery,
 } = userAuthapi;
-
-

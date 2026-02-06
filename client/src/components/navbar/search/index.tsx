@@ -5,37 +5,57 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useUpdateQueryParams } from "@/lib/query-params";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { useSearchPostMutation } from "@/lib/store/Service/api";
+import {
+  useSearchPostMutation,
+  usePopularKeywordsQuery,
+} from "@/lib/store/Service/api";
 import Kbd from "@/components/ui/kbd";
 import { Search } from "lucide-react";
 import Component from "./command";
 
+const FALLBACK_PLACEHOLDERS = [
+  "Premium suits collection",
+  "Tailored coats & blazers",
+  "Formal pants",
+  "Wedding suits",
+  "Three-piece suits",
+  "Safari suits",
+  "Slim fit shirts",
+  "Custom tailored suits",
+  "Men's formal wear",
+  "Wool blend coats",
+  "Business suits",
+  "Nehru jackets",
+  "Tuxedo suits",
+  "Casual blazers",
+  "Dress shirts",
+];
+
 export function PlaceholdersAndVanishInput() {
-  const placeholders = React.useMemo(
-    () => [
-      "Enlightened Buddha statues",
-      "Lotus Buddha sculpture",
-      "Bodhisattva figurines",
-      "Zen garden decor",
-      "Meditating monk statues",
-      "Tibetan prayer wheels",
-      "Golden Pagoda sculptures",
-      "Incense holders",
-      "Mala beads and bracelets",
-      "Thangka paintings",
-      "Buddhist ritual items",
-      "Zen garden accessories",
-      "Tibetan singing bowls",
-      "Mudra hand gestures",
-      "Buddhist prayer flags",
-      "Enlightenment artwork",
-      "Buddhist meditation aids",
-      "Dharma teachings",
-      "Buddhist wisdom books",
-      "Sacred Bodhi tree art",
-    ],
-    []
-  );
+  const { data: popularKeywords } = usePopularKeywordsQuery({});
+
+  const placeholders = React.useMemo(() => {
+    if (
+      popularKeywords &&
+      Array.isArray(popularKeywords) &&
+      popularKeywords.length > 0
+    ) {
+      // Use popular keywords from API, pad with fallbacks if fewer than 5
+      const apiKeywords = popularKeywords.map((kw: string) => kw);
+      if (apiKeywords.length >= 5) return apiKeywords;
+      // Merge API keywords with fallbacks, avoiding duplicates
+      const merged = [...apiKeywords];
+      for (const fb of FALLBACK_PLACEHOLDERS) {
+        if (!merged.some((k) => k.toLowerCase() === fb.toLowerCase())) {
+          merged.push(fb);
+        }
+        if (merged.length >= 15) break;
+      }
+      return merged;
+    }
+    return FALLBACK_PLACEHOLDERS;
+  }, [popularKeywords]);
+
   const updateQueryParams = useUpdateQueryParams();
   const [currentPlaceholder, setCurrentPlaceholder] = useState(0);
   const [SearchPost] = useSearchPostMutation();
@@ -173,7 +193,7 @@ export function PlaceholdersAndVanishInput() {
     if (value && inputRef.current) {
       const maxX = newDataRef.current.reduce(
         (prev, current) => (current.x > prev ? current.x : prev),
-        0
+        0,
       );
       animate(maxX);
     }
@@ -193,30 +213,20 @@ export function PlaceholdersAndVanishInput() {
         className={cn(
           "w-full cursor-pointer relative md:max-w-xl md:mx-auto flex bg-default-400/20 dark:bg-default-500/20 h-[40px] rounded-lg overflow-hidden shadow-[0px_2px_3px_-1px_rgba(0,0,0,0.1),_0px_1px_0px_0px_rgba(25,28,33,0.02),_0px_0px_0px_1px_rgba(25,28,33,0.08)] transition duration-200",
           "dark:bg-zinc-800/50 bg-muted/50",
-          "ring-offset-background border-transparent md:border-none outline-none ring-2 md:ring-0 ring-[#7828c8]/50 ring-offset-2 md:ring-offset-0 items-center"
+          "ring-offset-background border-transparent md:border-none outline-none ring-2 md:ring-0 ring-[#7828c8]/50 ring-offset-2 md:ring-offset-0 items-center",
         )}
         onSubmit={handleSubmit}
       >
         <canvas
           className={cn(
             "absolute pointer-events-none  text-base transform scale-50 top-[15%] left-2  origin-top-left filter invert dark:invert-0 pr-10 md:left-7",
-            !animating ? "opacity-0" : "opacity-100"
+            !animating ? "opacity-0" : "opacity-100",
           )}
           ref={canvasRef}
         />
         <label className="sr-only">Search</label>
         <div className="pointer-events-none absolute inset-y-0 start-0 items-center justify-center ps-3 text-muted-foreground/80 peer-disabled:opacity-50 hidden md:flex -left-1">
-          {/* {searchLoading ? (
-            <LoaderCircle
-              className="animate-spin"
-              size={16}
-              strokeWidth={2}
-              aria-hidden="true"
-              role="presentation"
-            />
-          ) : (
-            )} */}
-            <Search size={20} strokeWidth={2} aria-hidden="true" />
+          <Search size={20} strokeWidth={2} aria-hidden="true" />
         </div>
         <input
           onChange={(e) => {
@@ -230,7 +240,7 @@ export function PlaceholdersAndVanishInput() {
           type="text"
           className={cn(
             "w-full relative text-sm sm:text-base z-50 border-none dark:text-white bg-transparent text-black h-full rounded-full focus:outline-none focus:ring-0 px-4 py-4 left-0 md:left-5 ",
-            animating && "text-transparent dark:text-transparent"
+            animating && "text-transparent dark:text-transparent",
           )}
         />
         <Kbd
@@ -276,7 +286,7 @@ export function PlaceholdersAndVanishInput() {
           </AnimatePresence>
         </div>
       </form>
-      <Component/>
+      <Component />
     </span>
   );
 }
