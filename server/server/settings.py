@@ -13,7 +13,7 @@ SECRET_KEY = config("SECRET_KEY")
 
 DEBUG = False
 
-ALLOWED_HOSTS = ["alphasuits.com.np"]
+ALLOWED_HOSTS = ["alphasuits.com.np", "server.alphasuits.com.np"]
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -36,6 +36,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware",
+    "server.middleware.security.TamperDetectionMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
