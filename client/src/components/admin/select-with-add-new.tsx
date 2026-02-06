@@ -41,8 +41,11 @@ import Spinner from "@/components/ui/spinner";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-import { SelectWithAddNewType, CategoryOption, CategorySchemaFormValues } from "@/types/product-form";
-import DynamicForm from "@/constants/formhandler";
+import {
+  SelectWithAddNewType,
+  CategoryOption,
+  CategorySchemaFormValues,
+} from "@/types/product-form";
 
 const CategorySchema = z.object({
   name: z.string().min(2, { message: "Name is required" }),
@@ -108,7 +111,7 @@ export function SelectWithAddNew<T extends Record<string, any>>({
         setIsSubmitting(false);
       }
     },
-    [onAddNew, form, type]
+    [onAddNew, form, type],
   );
 
   const selectedOption = value ? renderOption(value) : null;
@@ -129,7 +132,7 @@ export function SelectWithAddNew<T extends Record<string, any>>({
                 className={cn(
                   "rounded-lg w-full justify-between dark:bg-neutral-900 px-3 font-normal outline-offset-0 hover:bg-background focus-visible:border-ring focus-visible:outline-[3px] focus-visible:outline-ring/20",
                   open &&
-                    "ring-2 ring-offset-2 ring-offset-default-100 dark:ring-offset-black ring-neutral-700"
+                    "ring-2 ring-offset-2 ring-offset-default-100 dark:ring-offset-black ring-neutral-700",
                 )}
               >
                 {selectedOption || placeholder}
@@ -185,10 +188,7 @@ export function SelectWithAddNew<T extends Record<string, any>>({
                 <DialogTitle>Add {label}</DialogTitle>
               </DialogHeader>
               <Form {...form}>
-                <form
-                  onSubmit={form.handleSubmit(onSubmit)}
-                  className="w-full"
-                >
+                <form onSubmit={form.handleSubmit(onSubmit)} className="w-full">
                   <FormField
                     control={form.control}
                     name="name"
