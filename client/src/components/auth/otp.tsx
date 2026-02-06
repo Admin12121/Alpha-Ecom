@@ -11,17 +11,14 @@ import { FormSuccess } from "../form-message/form-success";
 import React, { useState, useEffect } from "react";
 import useApi from "@/lib/useApi";
 import { usePathname } from "next/navigation";
-import { useRouter } from 'nextjs-toploader/app';
+import { useRouter } from "nextjs-toploader/app";
 import {
   InputOTP,
   InputOTPGroup,
   InputOTPSeparator,
   InputOTPSlot,
 } from "@/components/ui/input-otp";
-import {
-  Form,
-  FormField,
-} from "../ui/form";
+import { Form, FormField } from "../ui/form";
 
 export function InputOTPWithSeparator() {
   const pathname = usePathname();
@@ -57,7 +54,7 @@ export function InputOTPWithSeparator() {
       setSuccess("OTP Verified Successfully");
       setTimeout(() => {
         setSuccess("Redirecting ...");
-      }, 2000);      
+      }, 2000);
       setTimeout(() => {
         router.push(data.redirectUrl);
       }, 4000);
@@ -79,17 +76,17 @@ export function InputOTPWithSeparator() {
               name="otp"
               render={({ field }) => (
                 <InputOTP
-                  maxLength={5}
+                  maxLength={6}
                   value={field.value}
                   onChange={(value) => field.onChange(value)}
                 >
                   <InputOTPGroup>
-                    {[0, 1, 2, 3, 4].map((index) => (
+                    {[0, 1, 2, 3, 4, 5].map((index) => (
                       <React.Fragment key={index}>
                         <InputOTPGroup>
                           <InputOTPSlot index={index} />
                         </InputOTPGroup>
-                        {index < 4 && <InputOTPSeparator />}
+                        {index < 5 && <InputOTPSeparator />}
                       </React.Fragment>
                     ))}
                   </InputOTPGroup>

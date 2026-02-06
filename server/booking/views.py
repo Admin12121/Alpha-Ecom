@@ -1,4 +1,5 @@
 import datetime
+import logging
 import random
 import string
 
@@ -8,6 +9,8 @@ from django.utils import timezone
 from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
+
+logger = logging.getLogger(__name__)
 from rest_framework.views import APIView
 
 from account.utils import send_email
@@ -63,7 +66,7 @@ def send_booking_confirmation_email(booking):
         body = render_to_string("booking_confirmation.html", context)
         send_email(subject, booking.email, body)
     except Exception as e:
-        print(f"Failed to send booking confirmation email: {e}")
+        logger.error("Failed to send booking confirmation email: %s", e)
 
 
 def send_measurement_complete_email(booking):
@@ -124,7 +127,7 @@ def send_measurement_complete_email(booking):
         body = render_to_string("measurement_complete.html", context)
         send_email(subject, booking.email, body)
     except Exception as e:
-        print(f"Failed to send measurement complete email: {e}")
+        logger.error("Failed to send measurement complete email: %s", e)
 
 
 def generate_bill_number():

@@ -1,4 +1,5 @@
-import random
+import logging
+import re
 from datetime import datetime
 
 import requests
@@ -12,6 +13,7 @@ from django.db.models.functions import TruncDay, TruncMonth, TruncWeek, TruncYea
 from django.http import JsonResponse
 from django.template.loader import render_to_string
 from django.utils import timezone
+from django.utils.crypto import get_random_string
 from django.utils.encoding import force_bytes, force_str
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 from django.views import View
@@ -30,6 +32,8 @@ from .models import *
 from .renderers import UserRenderer
 from .serializers import *
 from .utils import generate_otp, generate_token, is_otp_valid, send_email
+
+logger = logging.getLogger(__name__)
 
 
 def get_tokens_for_user(user):
@@ -78,7 +82,7 @@ class NewsLetterViewSet(viewsets.ModelViewSet):
             body = render_to_string("newsletter_welcome.html")
             send_email(subject, instance.email, body)
         except Exception as e:
-            print(f"Failed to send newsletter welcome email: {e}")
+            logger.error("Failed to send newsletter welcome email: %s", e)
 
         headers = self.get_success_headers(serializer.data)
         return Response(
@@ -148,16 +152,10 @@ class UserViewSet(viewsets.ModelViewSet):
         User = get_user_model()
         try:
             with transaction.atomic():
-                letters = "abcdefghijklmnopqrstuvwxyz"
-                upperCase = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-                numbers = "0123456789"
-                symbols = "!@#$%^&*()_+[]{}|;:,.<>?"
-                charPool = letters + upperCase + numbers + symbols
-
-                password = ""
-                for i in charPool:
-                    random_index = random.randint(0, len(charPool) - 1)
-                    password += charPool[random_index]
+                password = get_random_string(
+                    length=32,
+                    allowed_chars="abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+-=",
+                )
 
                 user, created = User.objects.get_or_create(
                     email=email,
@@ -204,9 +202,9 @@ class UserViewSet(viewsets.ModelViewSet):
             response.raise_for_status()
             user.profile.save(f"{username}_avatar.png", ContentFile(response.content))
         except requests.RequestException as e:
-            print(f"Failed to download avatar: {e}")
+            logger.error("Failed to download avatar: %s", e)
         except Exception as e:
-            print(f"Failed to save avatar: {e}")
+            logger.error("Failed to save avatar: %s", e)
 
     @action(detail=False, methods=["post"])
     def login(self, request):
@@ -731,6 +729,16 @@ class SearchView(viewsets.ModelViewSet):
         if not keyword:
             return Response(
                 {"error": "Keyword is required"}, status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Sanitize: strip whitespace, remove HTML tags, enforce max length
+        keyword = keyword.strip()
+        keyword = re.sub(r"<[^>]*>", "", keyword)  # strip HTML tags
+        keyword = keyword[:100]  # enforce 100 char limit
+
+        if not keyword:
+            return Response(
+                {"error": "Keyword is invalid"}, status=status.HTTP_400_BAD_REQUEST
             )
 
         search_history = SearchHistory.objects.create(

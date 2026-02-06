@@ -7,22 +7,28 @@ from django.template.loader import render_to_string
 from django.utils import timezone
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import cache_page
-
 from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.parsers import FormParser, MultiPartParser
-from rest_framework.permissions import AllowAny, BasePermission, IsAuthenticated, SAFE_METHODS
+from rest_framework.permissions import (
+    SAFE_METHODS,
+    AllowAny,
+    BasePermission,
+    IsAuthenticated,
+)
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from account.models import SearchHistory, User
 from account.utils import send_email
+from sales.models import Saled_Products
 from server.utils.encryption import encrypt_response
 
 from .models import *
 from .serializers import *
+
 
 class StandardResultsSetPagination(PageNumberPagination):
     page_size = 10
@@ -84,7 +90,7 @@ class ProductColorViewSet(viewsets.ModelViewSet):
         if not color_code:
             return None
         normalized = color_code.strip().upper()
-        if not normalized.startswith('#'):
+        if not normalized.startswith("#"):
             normalized = f"#{normalized}"
         return normalized
 
@@ -104,7 +110,9 @@ class ProductColorViewSet(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
         headers = self.get_success_headers(serializer.data)
-        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+        return Response(
+            serializer.data, status=status.HTTP_201_CREATED, headers=headers
+        )
 
 
 class ProductViewSet(viewsets.ModelViewSet):
@@ -195,7 +203,7 @@ class ProductViewSet(viewsets.ModelViewSet):
         if not color_code:
             return None
         normalized = color_code.strip().upper()
-        if not normalized.startswith('#'):
+        if not normalized.startswith("#"):
             normalized = f"#{normalized}"
         return normalized
 
@@ -339,8 +347,10 @@ class ProductViewSet(viewsets.ModelViewSet):
             color_filter = Q()
             for value in color_values:
                 normalized = value.upper()
-                if not normalized.startswith('#'):
-                    normalized = f"#{normalized}" if len(normalized) in (3, 6, 7) else normalized
+                if not normalized.startswith("#"):
+                    normalized = (
+                        f"#{normalized}" if len(normalized) in (3, 6, 7) else normalized
+                    )
                 color_filter |= Q(productvariant__color_code__iexact=normalized)
                 color_filter |= Q(productvariant__color_name__iexact=value)
                 color_filter |= Q(description__icontains=f"#{value}")
@@ -407,7 +417,8 @@ class ProductViewSet(viewsets.ModelViewSet):
             existing_variant = instance.productvariant_set.first()
             if existing_variant:
                 color_code, color_name, color_obj = self._ensure_color_reference(
-                    single_variant_data.get("color_code"), single_variant_data.get("color_name")
+                    single_variant_data.get("color_code"),
+                    single_variant_data.get("color_name"),
                 )
                 existing_variant.price = single_variant_data["price"]
                 existing_variant.stock = single_variant_data["stock"]
@@ -425,7 +436,9 @@ class ProductViewSet(viewsets.ModelViewSet):
         )
 
     def _update_variants(self, variants_data, product):
-        existing_variants = {variant.id: variant for variant in product.productvariant_set.all()}
+        existing_variants = {
+            variant.id: variant for variant in product.productvariant_set.all()
+        }
         existing_combinations = {
             (variant.color_code or None, variant.size or None)
             for variant in existing_variants.values()
@@ -741,7 +754,7 @@ class ProductVariantViewSet(viewsets.ModelViewSet):
         if not color_code:
             return None
         normalized = color_code.strip().upper()
-        if not normalized.startswith('#'):
+        if not normalized.startswith("#"):
             normalized = f"#{normalized}"
         return normalized
 
@@ -750,7 +763,9 @@ class ProductVariantViewSet(viewsets.ModelViewSet):
         if not normalized:
             return None, None
         defaults = {"color_name": color_name or "Color"}
-        color_obj, _ = ProductColor.objects.get_or_create(color_code=normalized, defaults=defaults)
+        color_obj, _ = ProductColor.objects.get_or_create(
+            color_code=normalized, defaults=defaults
+        )
         if color_name and color_obj.color_name != color_name:
             color_obj.color_name = color_name
             color_obj.save(update_fields=["color_name"])
@@ -769,7 +784,9 @@ class ProductVariantViewSet(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
         headers = self.get_success_headers(serializer.data)
-        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+        return Response(
+            serializer.data, status=status.HTTP_201_CREATED, headers=headers
+        )
 
     def update(self, request, *args, **kwargs):
         instance = self.get_object()
@@ -822,10 +839,54 @@ class ReviewPostViewSet(viewsets.ModelViewSet):
     serializer_class = ReviewWriteSerializer
     permission_classes = [permissions.IsAuthenticated]
 
+    def _get_eligible_purchase_count(self, user, product):
+        """
+        Count distinct completed purchase transactions for this user+product.
+        Only sales with delivered/successful status count as eligible.
+        """
+        eligible_statuses = ["delivered", "successful"]
+        return (
+            Saled_Products.objects.filter(
+                transition__costumer_name=user,
+                transition__status__in=eligible_statuses,
+                product=product,
+            )
+            .values("transition")
+            .distinct()
+            .count()
+        )
+
     def create(self, request, *args, **kwargs):
         data = request.data
-        data["user"] = request.user.id
-        data["product"] = Product.objects.get(productslug=data.get("product_slug")).id
+        user = request.user
+        data["user"] = user.id
+
+        try:
+            product = Product.objects.get(productslug=data.get("product_slug"))
+        except Product.DoesNotExist:
+            return Response(
+                {"error": "Product not found."}, status=status.HTTP_404_NOT_FOUND
+            )
+        data["product"] = product.id
+
+        # --- Purchase verification: only buyers can review ---
+        eligible_purchases = self._get_eligible_purchase_count(user, product)
+        if eligible_purchases == 0:
+            return Response(
+                {"error": "You can only review products you have purchased."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        # --- One review per purchase transaction ---
+        existing_reviews = Review.objects.filter(user=user, product=product).count()
+        if existing_reviews >= eligible_purchases:
+            return Response(
+                {
+                    "error": "You have already reviewed this product for all your purchases."
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         image = data.pop("image", None)
         serializer = self.get_serializer(data=data)
         if serializer.is_valid(raise_exception=True):
@@ -877,13 +938,15 @@ class ReviewPostViewSet(viewsets.ModelViewSet):
 
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
-        if ( request.user.role != "Admin" and request.user.role != "Staff") :
+        if request.user.role != "Admin" and request.user.role != "Staff":
             return Response(
                 {"detail": "You are not authorized to delete this review data."},
                 status=status.HTTP_403_FORBIDDEN,
             )
         subject = ("Your review has been deleted",)
-        body = render_to_string("reviewrejected.html", {"remark": request.data.get("remark")})
+        body = render_to_string(
+            "reviewrejected.html", {"remark": request.data.get("remark")}
+        )
         send_email(subject, [instance.user.email], body)
         self.perform_destroy(instance)
         return Response(
@@ -913,7 +976,7 @@ class ReviewPostViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=["post"], permission_classes=[IsAuthenticated])
     def verify_review(self, request, *args, **kwargs):
         instance = self.get_object()
-        data = {verified: True}
+        data = {"verified": True}
         if request.user.role != "Admin" and request.user.role != "Staff":
             return Response(
                 {"detail": "You are not authorized to verify this review data."},
@@ -950,6 +1013,7 @@ class ReviewViewSet(viewsets.ModelViewSet):
                 and not product_slug
             ):
                 from rest_framework.exceptions import PermissionDenied
+
                 raise PermissionDenied(
                     {"detail": "You are not authorized to view reviews"}
                 )
