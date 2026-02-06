@@ -337,8 +337,8 @@ class PasswordResetView(APIView):
         except (TypeError, ValueError, OverflowError, User.DoesNotExist):
             user = None
 
-        uid = urlsafe_base64_encode(force_bytes(user.pk))
         if user:
+            uid = urlsafe_base64_encode(force_bytes(user.pk))
             otp = generate_otp()
             user.otp_token = otp
             user.otp_created_at = timezone.now()
