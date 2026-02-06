@@ -2,18 +2,12 @@ import hashlib
 import re
 import time
 
+from django.conf import settings
 from django.http import JsonResponse
 from django.utils.deprecation import MiddlewareMixin
 
 
 class TamperDetectionMiddleware(MiddlewareMixin):
-    """
-    Middleware to detect request tampering, proxy interception tools
-    (Burp Suite, OWASP ZAP, Fiddler, mitmproxy, etc.), and suspicious
-    request patterns. Returns scary warning responses when tampering is detected.
-    """
-
-    # Known proxy/interception tool signatures in User-Agent or headers
     PROXY_TOOL_SIGNATURES = [
         "burp",
         "burpsuite",
@@ -49,7 +43,6 @@ class TamperDetectionMiddleware(MiddlewareMixin):
         "insomnia",
     ]
 
-    # Suspicious header names injected by proxy tools
     SUSPICIOUS_HEADERS = [
         "HTTP_X_BURP",
         "HTTP_X_ZAP",
@@ -66,10 +59,9 @@ class TamperDetectionMiddleware(MiddlewareMixin):
         "HTTP_X_WIPP",
     ]
 
-    # SQL injection patterns
     SQL_INJECTION_PATTERNS = [
         r"(\b(union|select|insert|update|delete|drop|alter|create|exec|execute)\b.*\b(from|into|table|database|where)\b)",
-        r"(--|;|\/\*|\*\/|@@|@)",
+        r"(--\s|\/\*|\*\/|@@)",
         r"(\b(or|and)\b\s+\d+\s*=\s*\d+)",
         r"('(\s)*(or|and)(\s)*')",
         r"(\bwaitfor\b\s+\bdelay\b)",
@@ -77,7 +69,6 @@ class TamperDetectionMiddleware(MiddlewareMixin):
         r"(\bsleep\b\s*\()",
     ]
 
-    # XSS patterns
     XSS_PATTERNS = [
         r"<script[^>]*>",
         r"javascript\s*:",
@@ -90,7 +81,6 @@ class TamperDetectionMiddleware(MiddlewareMixin):
         r"url\s*\(\s*['\"]?\s*data:",
     ]
 
-    # Path traversal patterns
     PATH_TRAVERSAL_PATTERNS = [
         r"\.\./",
         r"\.\.\\",
@@ -105,7 +95,6 @@ class TamperDetectionMiddleware(MiddlewareMixin):
         r"win\.ini",
     ]
 
-    # Commonly scanned sensitive paths
     HONEYPOT_PATHS = [
         "/.env",
         "/.git",
@@ -156,7 +145,6 @@ class TamperDetectionMiddleware(MiddlewareMixin):
     ]
 
     def _get_client_ip(self, request):
-        """Extract the real client IP address."""
         x_forwarded_for = request.META.get("HTTP_X_FORWARDED_FOR")
         if x_forwarded_for:
             return x_forwarded_for.split(",")[0].strip()
@@ -166,7 +154,6 @@ class TamperDetectionMiddleware(MiddlewareMixin):
         return request.META.get("REMOTE_ADDR", "unknown")
 
     def _collect_device_data(self, request):
-        """Collect all available device/request data."""
         return {
             "ip_address": self._get_client_ip(request),
             "user_agent": request.META.get("HTTP_USER_AGENT", "N/A"),
@@ -189,65 +176,51 @@ class TamperDetectionMiddleware(MiddlewareMixin):
         }
 
     def _generate_threat_id(self, request):
-        """Generate a unique threat/trace ID for this request."""
         raw = f"{self._get_client_ip(request)}{time.time()}{request.get_full_path()}"
         return hashlib.sha256(raw.encode()).hexdigest()[:16].upper()
 
     def _check_proxy_tools(self, request):
-        """Detect proxy/interception tools from headers and user agent."""
         user_agent = request.META.get("HTTP_USER_AGENT", "").lower()
         detections = []
 
-        # Check User-Agent for known tool signatures
         for sig in self.PROXY_TOOL_SIGNATURES:
             if sig in user_agent:
                 detections.append(f"Proxy tool signature detected in User-Agent: {sig}")
 
-        # Check for suspicious headers injected by proxy tools
         for header in self.SUSPICIOUS_HEADERS:
             if header in request.META:
                 detections.append(f"Suspicious header detected: {header}")
 
-        # Check for empty or missing User-Agent (common with automated tools)
         if not user_agent or user_agent.strip() == "":
             detections.append("Missing User-Agent header (automated tool suspected)")
 
-        # Check for Burp Suite specific certificate headers
         if request.META.get("HTTP_SEC_CH_UA", "").lower().find("burp") != -1:
             detections.append("Burp Suite certificate signature detected")
 
         return detections
 
     def _check_header_anomalies(self, request):
-        """Detect header manipulation and anomalies."""
         anomalies = []
         user_agent = request.META.get("HTTP_USER_AGENT", "")
 
-        # Check for contradictory headers (e.g., mobile UA but desktop accept headers)
         if user_agent:
-            # Extremely long User-Agent (buffer overflow attempt)
             if len(user_agent) > 1000:
                 anomalies.append(
                     "Abnormally long User-Agent header (possible buffer overflow attempt)"
                 )
 
-            # User-Agent containing suspicious characters
             if any(c in user_agent for c in ["<", ">", "{", "}", "|", "`", "^"]):
                 anomalies.append("User-Agent contains suspicious characters")
 
-        # Check Accept header anomalies
         accept = request.META.get("HTTP_ACCEPT", "")
         if (
             accept == "*/*"
             and request.method in ["GET"]
             and not request.headers.get("X-Requested-With")
         ):
-            # Many automated tools send Accept: */* for GET requests
-            # This alone isn't conclusive, but combined with other signals it's suspicious
             pass
 
-        # Check for missing standard headers that browsers always send
-        if request.method == "GET":
+        if request.method == "GET" and not self._is_trusted_origin(request):
             standard_headers = [
                 "HTTP_ACCEPT",
                 "HTTP_ACCEPT_LANGUAGE",
@@ -259,12 +232,10 @@ class TamperDetectionMiddleware(MiddlewareMixin):
                     f"Missing standard browser headers: {', '.join(missing)}"
                 )
 
-        # Check for HTTP/1.0 (often used by scanners)
         server_protocol = request.META.get("SERVER_PROTOCOL", "")
         if server_protocol == "HTTP/1.0":
             anomalies.append("Using HTTP/1.0 protocol (uncommon for modern browsers)")
 
-        # Detect header injection attempts (newlines in header values)
         for key, value in request.META.items():
             if key.startswith("HTTP_") and isinstance(value, str):
                 if "\r" in value or "\n" in value:
@@ -273,24 +244,19 @@ class TamperDetectionMiddleware(MiddlewareMixin):
         return anomalies
 
     def _check_payload_tampering(self, request):
-        """Check request body and query params for injection attempts."""
         tampering = []
 
-        # Gather all input sources
         inputs_to_check = []
 
-        # Query parameters
         for key, value in request.GET.items():
             inputs_to_check.append(("query_param", key, value))
 
-        # POST data
         try:
             for key, value in request.POST.items():
                 inputs_to_check.append(("post_data", key, value))
         except Exception:
             pass
 
-        # Request body for JSON payloads
         if request.content_type and "json" in request.content_type.lower():
             try:
                 body = request.body.decode("utf-8", errors="ignore")
@@ -299,11 +265,9 @@ class TamperDetectionMiddleware(MiddlewareMixin):
             except Exception:
                 pass
 
-        # Check each input against patterns
         for source, key, value in inputs_to_check:
             value_str = str(value).lower()
 
-            # SQL Injection check
             for pattern in self.SQL_INJECTION_PATTERNS:
                 if re.search(pattern, value_str, re.IGNORECASE):
                     tampering.append(
@@ -311,13 +275,11 @@ class TamperDetectionMiddleware(MiddlewareMixin):
                     )
                     break
 
-            # XSS check
             for pattern in self.XSS_PATTERNS:
                 if re.search(pattern, value_str, re.IGNORECASE):
                     tampering.append(f"XSS pattern detected in {source} '{key}'")
                     break
 
-            # Path traversal check
             for pattern in self.PATH_TRAVERSAL_PATTERNS:
                 if re.search(pattern, value_str, re.IGNORECASE):
                     tampering.append(
@@ -325,7 +287,6 @@ class TamperDetectionMiddleware(MiddlewareMixin):
                     )
                     break
 
-        # Check the URL path itself
         path = request.get_full_path().lower()
         for pattern in self.PATH_TRAVERSAL_PATTERNS:
             if re.search(pattern, path, re.IGNORECASE):
@@ -343,7 +304,6 @@ class TamperDetectionMiddleware(MiddlewareMixin):
         return None
 
     def _build_threat_response(self, request, detections, threat_type="TAMPERING"):
-        """Build a scary JSON warning response for detected threats."""
         device_data = self._collect_device_data(request)
         threat_id = self._generate_threat_id(request)
 
@@ -391,31 +351,35 @@ class TamperDetectionMiddleware(MiddlewareMixin):
         response["Pragma"] = "no-cache"
         return response
 
-    def process_request(self, request):
-        """Main entry point — check every incoming request for tampering."""
-        all_detections = []
+    def _is_trusted_origin(self, request):
+        frontend_url = getattr(settings, "FRONTEND_URL", "").rstrip("/")
+        if not frontend_url:
+            return False
+        origin = request.META.get("HTTP_ORIGIN", "").rstrip("/")
+        referer = request.META.get("HTTP_REFERER", "").rstrip("/")
+        return origin == frontend_url or referer.startswith(frontend_url)
 
-        # 1. Check for proxy/interception tools
+    def process_request(self, request):
+        if self._is_trusted_origin(request):
+            return None
+
+        all_detections = []
         proxy_detections = self._check_proxy_tools(request)
         if proxy_detections:
             all_detections.extend(proxy_detections)
 
-        # 2. Check for header anomalies/manipulation
         header_anomalies = self._check_header_anomalies(request)
         if header_anomalies:
             all_detections.extend(header_anomalies)
 
-        # 3. Check for payload tampering (SQL injection, XSS, etc.)
         payload_tampering = self._check_payload_tampering(request)
         if payload_tampering:
             all_detections.extend(payload_tampering)
 
-        # 4. Check for honeypot path probes
         honeypot = self._check_honeypot_paths(request)
         if honeypot:
             all_detections.append(honeypot)
 
-        # If any threats were detected, block the request
         if all_detections:
             threat_type = "PROXY_TOOL" if proxy_detections else "TAMPERING"
             if payload_tampering:
@@ -424,13 +388,9 @@ class TamperDetectionMiddleware(MiddlewareMixin):
                 threat_type = "RECONNAISSANCE"
 
             return self._build_threat_response(request, all_detections, threat_type)
-
-        # No threats — allow the request to proceed
         return None
 
     def process_response(self, request, response):
-        """Add security headers to all responses."""
-        # Add a subtle monitoring header to all responses
         response["X-Security"] = "Active"
         response["X-Content-Type-Options"] = "nosniff"
         return response

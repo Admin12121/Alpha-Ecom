@@ -151,8 +151,8 @@ SIMPLE_JWT = {
     "JTI_CLAIM": "jti",
 }
 
-CORS_ALLOW_ALL_ORIGINS = False
-CORS_ALLOWED_ORIGINS = ["https://alphasuits.com.np", "https://server.alphasuits.com.np"]
+FRONTEND_URL = config("FRONTEND_URL")
+CORS_ALLOWED_ORIGINS = [FRONTEND_URL]
 SECURE_SSL_REDIRECT = True
 CSRF_COOKIE_SECURE = True
 SESSION_COOKIE_SECURE = True

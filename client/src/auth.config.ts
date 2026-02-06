@@ -56,7 +56,7 @@ export default {
               "Content-Type": "application/json",
             },
             body: JSON.stringify({ email, password }),
-          }
+          },
         );
         const data = await response.json();
         if (!response.ok) {
@@ -100,13 +100,13 @@ export default {
               username: user.name,
               profile: profile || user.image,
             }),
-          }
+          },
         );
 
         if (!response.ok) {
           const errorData = await response.json();
           throw new Error(
-            errorData.error || "Failed to process social login with Django"
+            errorData.error || "Failed to process social login with Django",
           );
         }
 
