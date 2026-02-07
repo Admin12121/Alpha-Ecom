@@ -42,10 +42,13 @@ def send_booking_confirmation_email(booking):
         subject = "Booking Confirmed - Your Measurement Appointment"
 
         # Format measurement type for display
-        measurement_type_display = (
-            "🏪 In-Store Visit"
-            if booking.measurement_type == "in_store"
-            else "🏠 Home Visit"
+        type_map = {
+            "in_store": "🏪 In-Store Visit",
+            "home_visit": "🏠 Home Visit",
+            "self": "📏 Self Measurement",
+        }
+        measurement_type_display = type_map.get(
+            booking.measurement_type, booking.measurement_type
         )
 
         # Format date

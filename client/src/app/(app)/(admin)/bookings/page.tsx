@@ -93,7 +93,7 @@ import {
   useDeleteBookingMutation,
   useGetBookingStatsQuery,
   useCustomerLookupQuery,
-  useAdminCreateBookingMutation,
+  useCreateBookingMutation,
 } from "@/lib/store/Service/api";
 
 const statusColors: Record<string, string> = {
@@ -310,8 +310,7 @@ export default function AdminBookingsPage() {
   const [updateStatus] = useUpdateBookingStatusMutation();
   const [updateMeasurements] = useUpdateMeasurementsMutation();
   const [deleteBooking] = useDeleteBookingMutation();
-  const [adminCreateBooking, { isLoading: isCreating }] =
-    useAdminCreateBookingMutation();
+  const [createBooking, { isLoading: isCreating }] = useCreateBookingMutation();
 
   const form = useForm<MeasurementFormData>({
     resolver: zodResolver(measurementSchema),
@@ -368,7 +367,6 @@ export default function AdminBookingsPage() {
     try {
       await updateStatus({ id, status: newStatus, token }).unwrap();
       toast.success(`Status updated to ${newStatus.replace("_", " ")}`);
-      refetch();
     } catch (error) {
       toast.error("Failed to update status");
     }
@@ -388,9 +386,6 @@ export default function AdminBookingsPage() {
       if (data.send_email) {
         toast.success("Email sent to customer");
       }
-      // Explicitly refetch both the list and the detail to ensure fresh data
-      refetch();
-      refetchBooking();
     } catch (error) {
       toast.error("Failed to save measurements");
     } finally {
@@ -482,11 +477,10 @@ export default function AdminBookingsPage() {
       if (hasPant) payload.pant_measurements = data.pant_measurements;
       if (hasShirt) payload.shirt_measurements = data.shirt_measurements;
 
-      await adminCreateBooking({ data: payload, token }).unwrap();
+      await createBooking({ data: payload, token }).unwrap();
       toast.success("Booking created successfully!");
       setCreateDialogOpen(false);
       createForm.reset();
-      refetch();
     } catch (error: any) {
       console.error("Create booking error:", error);
       toast.error(error?.data?.detail || "Failed to create booking");

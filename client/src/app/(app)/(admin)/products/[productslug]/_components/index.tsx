@@ -287,48 +287,47 @@ const ProductPage = ({ productslug }: { productslug: string }) => {
     const toastId = toast.loading("Preparing data...", {
       position: "top-center",
     });
-    const formData = new FormData();
-    formData.append("product_name", cleanedData.productName);
-    formData.append("description", cleanedData.description);
-    formData.append("is_multi_variant", cleanedData.isMultiVariant.toString());
-    formData.append("category", cleanedData.category.toString());
-
-    if (!cleanedData.isMultiVariant) {
-      formData.append("id", cleanedData.id);
-      formData.append("price", cleanedData.basePrice!.toString());
-      formData.append("size", "0");
-      formData.append("stock", cleanedData.stock!.toString());
-      formData.append("discount", cleanedData.discount!.toString());
-    } else {
-      cleanedData.variants?.forEach((variant, index) => {
-        formData.append(`variants[${index}][id]`, variant.id || "");
-        formData.append(`variants[${index}][size]`, variant.size || "");
-        formData.append(
-          `variants[${index}][color_code]`,
-          variant.color_code || "",
-        );
-        formData.append(
-          `variants[${index}][color_name]`,
-          variant.color_name || "",
-        );
-        formData.append(
-          `variants[${index}][price]`,
-          variant.price?.toString() || "0",
-        );
-        formData.append(
-          `variants[${index}][stock]`,
-          variant.stock?.toString() || "0",
-        );
-        if (variant.discount !== undefined) {
-          formData.append(
-            `variants[${index}][discount]`,
-            variant.discount.toString(),
-          );
-        }
-      });
-    }
 
     try {
+      const formData = new FormData();
+      formData.append("product_name", cleanedData.productName || "");
+      formData.append("description", cleanedData.description || "");
+      formData.append("is_multi_variant", String(cleanedData.isMultiVariant));
+      formData.append("category", String(cleanedData.category ?? ""));
+
+      if (!cleanedData.isMultiVariant) {
+        formData.append("id", cleanedData.id || "");
+        formData.append("price", String(cleanedData.basePrice ?? 0));
+        formData.append("size", "0");
+        formData.append("stock", String(cleanedData.stock ?? 0));
+        formData.append("discount", String(cleanedData.discount ?? 0));
+      } else {
+        cleanedData.variants?.forEach((variant, index) => {
+          formData.append(`variants[${index}][id]`, variant.id || "");
+          formData.append(`variants[${index}][size]`, variant.size || "");
+          formData.append(
+            `variants[${index}][color_code]`,
+            variant.color_code || "",
+          );
+          formData.append(
+            `variants[${index}][color_name]`,
+            variant.color_name || "",
+          );
+          formData.append(
+            `variants[${index}][price]`,
+            String(variant.price ?? 0),
+          );
+          formData.append(
+            `variants[${index}][stock]`,
+            String(variant.stock ?? 0),
+          );
+          formData.append(
+            `variants[${index}][discount]`,
+            String(variant.discount ?? 0),
+          );
+        });
+      }
+
       setTimeout(() => {
         toast.loading("Uploading Product Details...", {
           id: toastId,
@@ -367,7 +366,8 @@ const ProductPage = ({ productslug }: { productslug: string }) => {
         });
       }
     } catch (error: any) {
-      toast.error("Error updating product", {
+      console.error("Product update error:", error);
+      toast.error(error?.message || "Error updating product", {
         id: toastId,
         position: "top-center",
       });

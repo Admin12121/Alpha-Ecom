@@ -33,8 +33,43 @@ export const userAuthapi = createApi({
   baseQuery: fetchBaseQuery({
     baseUrl: `${process.env.NEXT_PUBLIC_API_URL}`,
   }),
-  tagTypes: ["LoggedUser", "Cart", "Bookings", "BookingDetail", "BookingStats"],
+  refetchOnFocus: true,
+  refetchOnReconnect: true,
+  tagTypes: [
+    "LoggedUser",
+    "Cart",
+    "Products",
+    "ProductDetail",
+    "ProductImages",
+    "ProductVariants",
+    "Categories",
+    "Orders",
+    "OrderDetail",
+    "Stocks",
+    "Reviews",
+    "UserReviews",
+    "Shipping",
+    "RedeemCodes",
+    "Layout",
+    "Newsletter",
+    "Users",
+    "Bookings",
+    "BookingDetail",
+    "BookingStats",
+    "DashboardStats",
+    "SalesChart",
+    "TopProducts",
+    "RecentOrders",
+    "RecentBookings",
+    "VisitorStats",
+    "CategoryPerformance",
+    "TrendingProducts",
+    "PopularKeywords",
+    "Notifications",
+  ],
   endpoints: (builder) => ({
+    // ==================== AUTH & USER API ====================
+
     userDevice: builder.mutation({
       query: (user) => ({
         url: "api/accounts/users/device/",
@@ -43,6 +78,7 @@ export const userAuthapi = createApi({
         headers: createHeaders(),
       }),
     }),
+
     allUsers: builder.query({
       query: ({ username, search, rowsperpage, page, exclude_by, token }) => {
         return {
@@ -58,7 +94,18 @@ export const userAuthapi = createApi({
           headers: createHeaders(token),
         };
       },
+      providesTags: (result: any) =>
+        result?.results
+          ? [
+              ...result.results.map((u: any) => ({
+                type: "Users" as const,
+                id: u.id,
+              })),
+              { type: "Users" as const, id: "LIST" },
+            ]
+          : [{ type: "Users" as const, id: "LIST" }],
     }),
+
     getLoggedUser: builder.query({
       query: ({ token }) => ({
         url: "api/accounts/users/me/",
@@ -66,25 +113,30 @@ export const userAuthapi = createApi({
         headers: createHeaders(token),
       }),
       providesTags: [{ type: "LoggedUser", id: "ME" }],
-      keepUnusedDataFor: 5 * 60, // 5 minutes
+      keepUnusedDataFor: 5 * 60,
     }),
+
     getUserProfile: builder.query({
       query: ({ username }) => ({
         url: `api/accounts/users/?name=${username}`,
         method: "GET",
         headers: createHeaders(),
       }),
+      keepUnusedDataFor: 3 * 60,
     }),
+
     updateUserProfile: builder.mutation({
       query: ({ NewFormData, token }) => ({
-        url: `api/accounts/users/12/`,
+        url: `api/accounts/users/profile/`,
         method: "PATCH",
         body: NewFormData,
         headers: {
           authorization: `Bearer ${token}`,
         },
       }),
+      invalidatesTags: [{ type: "LoggedUser", id: "ME" }],
     }),
+
     changeUserPassword: builder.mutation({
       query: ({ actualData }) => ({
         url: "api/accounts/changepassword/",
@@ -93,6 +145,7 @@ export const userAuthapi = createApi({
         headers: createHeaders(),
       }),
     }),
+
     refreshToken: builder.mutation({
       query: (refreshToken) => ({
         url: "api/accounts/token/refresh/",
@@ -101,6 +154,34 @@ export const userAuthapi = createApi({
         headers: createHeaders(),
       }),
     }),
+
+    deleteUser: builder.mutation({
+      query: ({ userId, token }) => ({
+        url: `api/accounts/admin-users/${userId}/`,
+        method: "DELETE",
+        headers: createHeaders(token),
+      }),
+      invalidatesTags: (_result: any, _error: any, arg: any) => [
+        { type: "Users" as const, id: arg.userId },
+        { type: "Users" as const, id: "LIST" },
+      ],
+    }),
+
+    updateUserState: builder.mutation({
+      query: ({ userId, state, token }) => ({
+        url: `api/accounts/admin-users/${userId}/update_state/`,
+        method: "PATCH",
+        body: { state },
+        headers: createHeaders(token),
+      }),
+      invalidatesTags: (_result: any, _error: any, arg: any) => [
+        { type: "Users" as const, id: arg.userId },
+        { type: "Users" as const, id: "LIST" },
+      ],
+    }),
+
+    // ==================== PRODUCT API ====================
+
     productsRegistration: builder.mutation({
       query: ({ formData, token }) => {
         return {
@@ -112,7 +193,13 @@ export const userAuthapi = createApi({
           },
         };
       },
+      invalidatesTags: [
+        { type: "Products", id: "LIST" },
+        { type: "Stocks", id: "LIST" },
+        { type: "TrendingProducts", id: "LIST" },
+      ],
     }),
+
     productsUpdate: builder.mutation({
       query: ({ formData, token, id }) => {
         return {
@@ -124,7 +211,14 @@ export const userAuthapi = createApi({
           },
         };
       },
+      invalidatesTags: (_result: any, _error: any, arg: any) => [
+        { type: "Products", id: "LIST" },
+        { type: "ProductDetail", id: arg.id },
+        { type: "Stocks", id: "LIST" },
+        { type: "TrendingProducts", id: "LIST" },
+      ],
     }),
+
     productImage: builder.mutation({
       query: ({ formData, token, id }) => {
         return {
@@ -136,7 +230,12 @@ export const userAuthapi = createApi({
           },
         };
       },
+      invalidatesTags: (_result: any, _error: any, arg: any) => [
+        { type: "ProductImages", id: arg.id },
+        { type: "Products", id: "LIST" },
+      ],
     }),
+
     deleteproductImage: builder.mutation({
       query: ({ token, id }) => {
         return {
@@ -147,7 +246,12 @@ export const userAuthapi = createApi({
           },
         };
       },
+      invalidatesTags: (_result: any, _error: any, arg: any) => [
+        { type: "ProductImages", id: arg.id },
+        { type: "Products", id: "LIST" },
+      ],
     }),
+
     variantUpdate: builder.mutation({
       query: ({ token, actualData }) => {
         return {
@@ -157,7 +261,13 @@ export const userAuthapi = createApi({
           headers: createHeaders(token),
         };
       },
+      invalidatesTags: (_result: any, _error: any, arg: any) => [
+        { type: "ProductVariants", id: arg.actualData?.id },
+        { type: "Products", id: "LIST" },
+        { type: "Stocks", id: "LIST" },
+      ],
     }),
+
     variantDelete: builder.mutation({
       query: ({ token, id }) => {
         return {
@@ -166,7 +276,13 @@ export const userAuthapi = createApi({
           headers: createHeaders(token),
         };
       },
+      invalidatesTags: (_result: any, _error: any, arg: any) => [
+        { type: "ProductVariants", id: arg.id },
+        { type: "Products", id: "LIST" },
+        { type: "Stocks", id: "LIST" },
+      ],
     }),
+
     productsView: builder.query({
       query: ({
         productslug,
@@ -207,7 +323,28 @@ export const userAuthapi = createApi({
           headers: createHeaders(token),
         };
       },
+      providesTags: (result: any, _error: any, arg: any) => {
+        // Single product by slug
+        if (arg.productslug && result?.id) {
+          return [
+            { type: "ProductDetail" as const, id: result.id },
+            { type: "Products" as const, id: "LIST" },
+          ];
+        }
+        // Product list
+        if (result?.results) {
+          return [
+            ...result.results.map((p: any) => ({
+              type: "Products" as const,
+              id: p.id,
+            })),
+            { type: "Products" as const, id: "LIST" },
+          ];
+        }
+        return [{ type: "Products" as const, id: "LIST" }];
+      },
     }),
+
     productsByIds: builder.query({
       query: ({ ids, all }) => ({
         url: `api/products/get_products_by_ids/?ids=${ids}${
@@ -216,7 +353,10 @@ export const userAuthapi = createApi({
         method: "GET",
         headers: createHeaders(),
       }),
+      providesTags: [{ type: "Products", id: "LIST" }],
+      keepUnusedDataFor: 2 * 60,
     }),
+
     checkout_products: builder.query({
       query: ({ ids, all, token }) => ({
         url: `api/products/products/checkout_products/?ids=${ids}${
@@ -225,7 +365,9 @@ export const userAuthapi = createApi({
         method: "GET",
         headers: createHeaders(token),
       }),
+      providesTags: [{ type: "Products", id: "CHECKOUT" }],
     }),
+
     recommendedProductsView: builder.query({
       query: ({ product_id, token }) => ({
         url: `api/products/recommendations/${
@@ -234,21 +376,35 @@ export const userAuthapi = createApi({
         method: "GET",
         headers: createHeaders(token),
       }),
+      providesTags: [{ type: "Products", id: "RECOMMENDED" }],
+      keepUnusedDataFor: 5 * 60,
     }),
+
     trendingProductsView: builder.query({
       query: () => ({
         url: "api/products/trending/",
         method: "GET",
         headers: createHeaders(),
       }),
+      providesTags: [{ type: "TrendingProducts", id: "LIST" }],
+      keepUnusedDataFor: 5 * 60,
     }),
+
     deleteProducts: builder.mutation({
       query: ({ token, id }) => ({
         url: `api/products/products/${id}/`,
         method: "DELETE",
         headers: createHeaders(token),
       }),
+      invalidatesTags: (_result: any, _error: any, arg: any) => [
+        { type: "Products", id: arg.id },
+        { type: "Products", id: "LIST" },
+        { type: "ProductDetail", id: arg.id },
+        { type: "Stocks", id: "LIST" },
+        { type: "TrendingProducts", id: "LIST" },
+      ],
     }),
+
     notifyuser: builder.mutation({
       query: ({ actualData, token }) => ({
         url: "api/products/notifyuser/",
@@ -256,7 +412,9 @@ export const userAuthapi = createApi({
         body: actualData,
         headers: createHeaders(token),
       }),
+      invalidatesTags: [{ type: "Notifications", id: "LIST" }],
     }),
+
     getnotifyuser: builder.query({
       query: ({ product, variant, token }) => ({
         url: `api/products/notifyuser/${buildQueryParams({
@@ -266,14 +424,30 @@ export const userAuthapi = createApi({
         method: "GET",
         headers: createHeaders(token),
       }),
+      providesTags: (_result: any, _error: any, arg: any) => [
+        {
+          type: "Notifications" as const,
+          id: `${arg.product}-${arg.variant}`,
+        },
+        { type: "Notifications" as const, id: "LIST" },
+      ],
     }),
+
     deleteProduct: builder.mutation({
       query: (id) => ({
         url: `api/products/products/?id=${id}`,
         method: "DELETE",
         headers: createHeaders(),
       }),
+      invalidatesTags: [
+        { type: "Products", id: "LIST" },
+        { type: "Stocks", id: "LIST" },
+        { type: "TrendingProducts", id: "LIST" },
+      ],
     }),
+
+    // ==================== CART API ====================
+
     cartView: builder.query({
       query: ({ token }) => ({
         url: `api/products/cart/`,
@@ -282,6 +456,7 @@ export const userAuthapi = createApi({
       }),
       providesTags: ["Cart"],
     }),
+
     cartPost: builder.mutation({
       query: ({ actualData, token }) => ({
         url: `api/products/cart/`,
@@ -291,6 +466,7 @@ export const userAuthapi = createApi({
       }),
       invalidatesTags: ["Cart"],
     }),
+
     cartUpdate: builder.mutation({
       query: ({ actualData, token }) => ({
         url: `api/products/cart/12/`,
@@ -300,6 +476,7 @@ export const userAuthapi = createApi({
       }),
       invalidatesTags: ["Cart"],
     }),
+
     cartDelete: builder.mutation({
       query: ({ id, variantId, token }) => {
         return {
@@ -310,6 +487,7 @@ export const userAuthapi = createApi({
       },
       invalidatesTags: ["Cart"],
     }),
+
     clearCart: builder.mutation({
       query: ({ token }) => ({
         url: "api/products/clearcart/",
@@ -318,6 +496,9 @@ export const userAuthapi = createApi({
       }),
       invalidatesTags: ["Cart"],
     }),
+
+    // ==================== SEARCH API ====================
+
     searchPost: builder.mutation({
       query: ({ actualData }) => {
         return {
@@ -327,28 +508,50 @@ export const userAuthapi = createApi({
           headers: createHeaders(),
         };
       },
+      invalidatesTags: [{ type: "PopularKeywords", id: "LIST" }],
     }),
+
     popularKeywords: builder.query({
       query: () => ({
         url: "api/accounts/search/popular-keywords/",
         method: "GET",
         headers: createHeaders(),
       }),
+      providesTags: [{ type: "PopularKeywords", id: "LIST" }],
+      keepUnusedDataFor: 10 * 60,
     }),
+
+    // ==================== CATEGORY API ====================
+
     categoryView: builder.query({
       query: () => ({
         url: "api/products/categories/",
         method: "GET",
         headers: createHeaders(),
       }),
+      providesTags: (result: any) =>
+        Array.isArray(result)
+          ? [
+              ...result.map((c: any) => ({
+                type: "Categories" as const,
+                id: c.id,
+              })),
+              { type: "Categories" as const, id: "LIST" },
+            ]
+          : [{ type: "Categories" as const, id: "LIST" }],
+      keepUnusedDataFor: 10 * 60,
     }),
+
     getCategory: builder.query({
       query: ({ name }) => ({
         url: `api/products/get_category/${buildQueryParams({ name })}`,
         method: "GET",
         headers: createHeaders(),
       }),
+      providesTags: [{ type: "Categories", id: "SEARCH" }],
+      keepUnusedDataFor: 5 * 60,
     }),
+
     addCategory: builder.mutation({
       query: ({ formData, token }) => {
         return {
@@ -360,7 +563,13 @@ export const userAuthapi = createApi({
           },
         };
       },
+      invalidatesTags: [
+        { type: "Categories", id: "LIST" },
+        { type: "Categories", id: "SEARCH" },
+        { type: "CategoryPerformance", id: "LIST" },
+      ],
     }),
+
     upgradeCategory: builder.mutation({
       query: ({ formData, id, token }) => ({
         url: `api/products/categories/${id}/`,
@@ -368,21 +577,48 @@ export const userAuthapi = createApi({
         body: formData,
         headers: createHeaders(token),
       }),
+      invalidatesTags: (_result: any, _error: any, arg: any) => [
+        { type: "Categories", id: arg.id },
+        { type: "Categories", id: "LIST" },
+        { type: "Categories", id: "SEARCH" },
+        { type: "CategoryPerformance", id: "LIST" },
+      ],
     }),
+
     deleteCategory: builder.mutation({
       query: ({ id, token }) => ({
         url: `api/products/categories/${id}/`,
         method: "DELETE",
         headers: createHeaders(token),
       }),
+      invalidatesTags: (_result: any, _error: any, arg: any) => [
+        { type: "Categories", id: arg.id },
+        { type: "Categories", id: "LIST" },
+        { type: "Categories", id: "SEARCH" },
+        { type: "CategoryPerformance", id: "LIST" },
+      ],
     }),
+
+    // ==================== REDEEM CODE / DISCOUNT API ====================
+
     redeemCodeView: builder.query({
       query: ({ token }) => ({
         url: `api/sales/redeemcode/`,
         method: "GET",
         headers: createHeaders(token),
       }),
+      providesTags: (result: any) =>
+        Array.isArray(result)
+          ? [
+              ...result.map((r: any) => ({
+                type: "RedeemCodes" as const,
+                id: r.id,
+              })),
+              { type: "RedeemCodes" as const, id: "LIST" },
+            ]
+          : [{ type: "RedeemCodes" as const, id: "LIST" }],
     }),
+
     verifyRedeemCode: builder.mutation({
       query: ({ code, token }) => ({
         url: `api/sales/redeemcode/verify-code/`,
@@ -391,6 +627,7 @@ export const userAuthapi = createApi({
         headers: createHeaders(token),
       }),
     }),
+
     addRedeemCode: builder.mutation({
       query: ({ actualData, token }) => ({
         url: "api/sales/redeemcode/",
@@ -398,7 +635,9 @@ export const userAuthapi = createApi({
         body: actualData,
         headers: createHeaders(token),
       }),
+      invalidatesTags: [{ type: "RedeemCodes", id: "LIST" }],
     }),
+
     updateRedeemCode: builder.mutation({
       query: ({ actualData, token }) => ({
         url: `api/sales/redeemcode/${actualData.id}/`,
@@ -406,21 +645,38 @@ export const userAuthapi = createApi({
         body: actualData,
         headers: createHeaders(token),
       }),
+      invalidatesTags: (_result: any, _error: any, arg: any) => [
+        { type: "RedeemCodes", id: arg.actualData?.id },
+        { type: "RedeemCodes", id: "LIST" },
+      ],
     }),
+
     deleteRedeemCode: builder.mutation({
       query: ({ id, token }) => ({
         url: `api/sales/redeemcode/${id}/`,
         method: "DELETE",
         headers: createHeaders(token),
       }),
+      invalidatesTags: (_result: any, _error: any, arg: any) => [
+        { type: "RedeemCodes", id: arg.id },
+        { type: "RedeemCodes", id: "LIST" },
+      ],
     }),
+
+    // ==================== LAYOUT API ====================
+
     getlayout: builder.query({
       query: ({ layoutslug }) => ({
         url: `api/layout/layouts/${layoutslug ? `${layoutslug}/` : ""}`,
         method: "GET",
         headers: createHeaders(),
       }),
+      providesTags: (_result: any, _error: any, arg: any) => [
+        { type: "Layout" as const, id: arg.layoutslug || "ALL" },
+      ],
+      keepUnusedDataFor: 10 * 60,
     }),
+
     createorUpdatelayout: builder.mutation({
       query: ({ layoutslug, NewFormData, token }) => {
         return {
@@ -430,7 +686,13 @@ export const userAuthapi = createApi({
           headers: createHeaders(token),
         };
       },
+      invalidatesTags: (_result: any, _error: any, arg: any) => [
+        { type: "Layout", id: arg.layoutslug || "ALL" },
+      ],
     }),
+
+    // ==================== REVIEW API ====================
+
     postReview: builder.mutation({
       query: ({ actualData, token }) => {
         return {
@@ -442,7 +704,12 @@ export const userAuthapi = createApi({
           },
         };
       },
+      invalidatesTags: [
+        { type: "Reviews", id: "LIST" },
+        { type: "UserReviews", id: "LIST" },
+      ],
     }),
+
     updateReview: builder.mutation({
       query: ({ FormData, id, token }) => ({
         url: `api/products/reviews-update/${id}/`,
@@ -450,7 +717,13 @@ export const userAuthapi = createApi({
         body: FormData,
         headers: createHeaders(token),
       }),
+      invalidatesTags: (_result: any, _error: any, arg: any) => [
+        { type: "Reviews", id: arg.id },
+        { type: "Reviews", id: "LIST" },
+        { type: "UserReviews", id: "LIST" },
+      ],
     }),
+
     deleteReview: builder.mutation({
       query: ({ data, token, id }) => {
         return {
@@ -462,7 +735,13 @@ export const userAuthapi = createApi({
           },
         };
       },
+      invalidatesTags: (_result: any, _error: any, arg: any) => [
+        { type: "Reviews", id: arg.id },
+        { type: "Reviews", id: "LIST" },
+        { type: "UserReviews", id: "LIST" },
+      ],
     }),
+
     getReview: builder.query({
       query: ({ product_slug, page, page_size, star, filter }) => ({
         url: `api/products/reviews/${product_slug}/data/${buildQueryParams({
@@ -474,7 +753,12 @@ export const userAuthapi = createApi({
         method: "GET",
         headers: createHeaders(),
       }),
+      providesTags: (_result: any, _error: any, arg: any) => [
+        { type: "Reviews" as const, id: `PRODUCT-${arg.product_slug}` },
+        { type: "Reviews" as const, id: "LIST" },
+      ],
     }),
+
     getUserReview: builder.query({
       query: ({ token, search, page, page_size, star, filter }) => ({
         url: `api/products/reviews/user/${buildQueryParams({
@@ -487,7 +771,11 @@ export const userAuthapi = createApi({
         method: "GET",
         headers: createHeaders(token),
       }),
+      providesTags: [{ type: "UserReviews", id: "LIST" }],
     }),
+
+    // ==================== SALES / ORDERS API ====================
+
     postSale: builder.mutation({
       query: ({ actualData, token }) => ({
         url: `api/sales/sales/`,
@@ -495,48 +783,20 @@ export const userAuthapi = createApi({
         body: actualData,
         headers: createHeaders(token),
       }),
+      invalidatesTags: [
+        { type: "Orders", id: "LIST" },
+        { type: "DashboardStats", id: "LIST" },
+        { type: "SalesChart", id: "LIST" },
+        { type: "RecentOrders", id: "LIST" },
+        { type: "Stocks", id: "LIST" },
+        "Cart",
+      ],
     }),
-    getshipping: builder.query({
-      query: ({ token }) => ({
-        url: `api/accounts/shipping/`,
-        method: "GET",
-        headers: createHeaders(token),
-      }),
-    }),
-    getdefaultshipping: builder.query({
-      query: ({ token }) => ({
-        url: `api/accounts/default-address/`,
-        method: "GET",
-        headers: createHeaders(token),
-      }),
-    }),
-    shipping: builder.mutation({
-      query: ({ actualData, token }) => ({
-        url: `api/accounts/shipping/`,
-        method: "POST",
-        body: actualData,
-        headers: createHeaders(token),
-      }),
-    }),
-    updateshipping: builder.mutation({
-      query: ({ actualData, token }) => ({
-        url: `api/accounts/shipping/${actualData.id}/`,
-        method: "PATCH",
-        body: actualData,
-        headers: createHeaders(token),
-      }),
-    }),
-    deleteshipping: builder.mutation({
-      query: ({ id, token }) => ({
-        url: `api/accounts/shipping/${id}/`,
-        method: "DELETE",
-        headers: createHeaders(token),
-      }),
-    }),
+
     getOrders: builder.query({
       query: ({ token, status, search, rowsperpage, page }) => ({
         url: `api/sales/sales/${
-          status ? `status/${status}/` : ""
+          status && status !== "all" ? `status/${status}/` : ""
         }${buildQueryParams({
           search,
           page_size: rowsperpage,
@@ -545,14 +805,34 @@ export const userAuthapi = createApi({
         method: "GET",
         headers: createHeaders(token),
       }),
+      providesTags: (result: any, _error: any, arg: any) => {
+        const statusTag = arg.status || "all";
+        if (result?.results) {
+          return [
+            ...result.results.map((o: any) => ({
+              type: "Orders" as const,
+              id: o.id,
+            })),
+            { type: "Orders" as const, id: "LIST" },
+            { type: "Orders" as const, id: `STATUS-${statusTag}` },
+          ];
+        }
+        return [
+          { type: "Orders" as const, id: "LIST" },
+          { type: "Orders" as const, id: `STATUS-${statusTag}` },
+        ];
+      },
     }),
+
     getStocks: builder.query({
       query: ({ token, search, page }) => ({
         url: `api/products/stocks/${buildQueryParams({ search, page })}`,
         method: "GET",
         headers: createHeaders(token),
       }),
+      providesTags: [{ type: "Stocks", id: "LIST" }],
     }),
+
     updateSale: builder.mutation({
       query: ({ actualData, token }) => ({
         url: `api/sales/sales/${actualData.id}/`,
@@ -560,21 +840,112 @@ export const userAuthapi = createApi({
         body: actualData,
         headers: createHeaders(token),
       }),
+      invalidatesTags: (_result: any, _error: any, arg: any) => [
+        { type: "Orders", id: arg.actualData?.id },
+        { type: "Orders", id: "LIST" },
+        { type: "OrderDetail", id: arg.actualData?.id },
+        { type: "DashboardStats", id: "LIST" },
+        { type: "RecentOrders", id: "LIST" },
+      ],
     }),
+
     deleteSale: builder.mutation({
       query: ({ id, token }) => ({
         url: `api/sales/sales/${id}/`,
         method: "DELETE",
         headers: createHeaders(token),
       }),
+      invalidatesTags: (_result: any, _error: any, arg: any) => [
+        { type: "Orders", id: arg.id },
+        { type: "Orders", id: "LIST" },
+        { type: "DashboardStats", id: "LIST" },
+        { type: "SalesChart", id: "LIST" },
+        { type: "RecentOrders", id: "LIST" },
+      ],
     }),
+
     salesRetrieve: builder.query({
       query: ({ transactionuid, token }) => ({
         url: `api/sales/sales/transaction/${transactionuid}/`,
         method: "GET",
         headers: createHeaders(token),
       }),
+      providesTags: (_result: any, _error: any, arg: any) => [
+        { type: "OrderDetail" as const, id: arg.transactionuid },
+      ],
     }),
+
+    // ==================== SHIPPING API ====================
+
+    getshipping: builder.query({
+      query: ({ token }) => ({
+        url: `api/accounts/shipping/`,
+        method: "GET",
+        headers: createHeaders(token),
+      }),
+      providesTags: (result: any) =>
+        Array.isArray(result)
+          ? [
+              ...result.map((s: any) => ({
+                type: "Shipping" as const,
+                id: s.id,
+              })),
+              { type: "Shipping" as const, id: "LIST" },
+            ]
+          : [{ type: "Shipping" as const, id: "LIST" }],
+    }),
+
+    getdefaultshipping: builder.query({
+      query: ({ token }) => ({
+        url: `api/accounts/default-address/`,
+        method: "GET",
+        headers: createHeaders(token),
+      }),
+      providesTags: [{ type: "Shipping", id: "DEFAULT" }],
+    }),
+
+    shipping: builder.mutation({
+      query: ({ actualData, token }) => ({
+        url: `api/accounts/shipping/`,
+        method: "POST",
+        body: actualData,
+        headers: createHeaders(token),
+      }),
+      invalidatesTags: [
+        { type: "Shipping", id: "LIST" },
+        { type: "Shipping", id: "DEFAULT" },
+      ],
+    }),
+
+    updateshipping: builder.mutation({
+      query: ({ actualData, token }) => ({
+        url: `api/accounts/shipping/${actualData.id}/`,
+        method: "PATCH",
+        body: actualData,
+        headers: createHeaders(token),
+      }),
+      invalidatesTags: (_result: any, _error: any, arg: any) => [
+        { type: "Shipping", id: arg.actualData?.id },
+        { type: "Shipping", id: "LIST" },
+        { type: "Shipping", id: "DEFAULT" },
+      ],
+    }),
+
+    deleteshipping: builder.mutation({
+      query: ({ id, token }) => ({
+        url: `api/accounts/shipping/${id}/`,
+        method: "DELETE",
+        headers: createHeaders(token),
+      }),
+      invalidatesTags: (_result: any, _error: any, arg: any) => [
+        { type: "Shipping", id: arg.id },
+        { type: "Shipping", id: "LIST" },
+        { type: "Shipping", id: "DEFAULT" },
+      ],
+    }),
+
+    // ==================== NEWSLETTER API ====================
+
     postnewsletter: builder.mutation({
       query: ({ actualData }) => {
         return {
@@ -584,83 +955,92 @@ export const userAuthapi = createApi({
           headers: createHeaders(),
         };
       },
+      invalidatesTags: [{ type: "Newsletter", id: "LIST" }],
     }),
+
     getnewsletter: builder.query({
       query: ({ token, search, page }) => ({
         url: `api/accounts/newsletter/${buildQueryParams({ search, page })}`,
         method: "GET",
         headers: createHeaders(token),
       }),
+      providesTags: [{ type: "Newsletter", id: "LIST" }],
     }),
 
     // ==================== DASHBOARD API ====================
 
-    // Get dashboard stats
     getDashboardStats: builder.query({
       query: ({ token, start_date, end_date }) => ({
         url: `api/sales/dashboard/stats/${buildQueryParams({ start_date, end_date })}`,
         method: "GET",
         headers: createHeaders(token),
       }),
+      providesTags: [{ type: "DashboardStats", id: "LIST" }],
+      keepUnusedDataFor: 2 * 60,
     }),
 
-    // Get sales chart data
     getSalesChart: builder.query({
       query: ({ token, start_date, end_date }) => ({
         url: `api/sales/dashboard/sales-chart/${buildQueryParams({ start_date, end_date })}`,
         method: "GET",
         headers: createHeaders(token),
       }),
+      providesTags: [{ type: "SalesChart", id: "LIST" }],
+      keepUnusedDataFor: 2 * 60,
     }),
 
-    // Get top products
     getTopProducts: builder.query({
       query: ({ token, limit }) => ({
         url: `api/sales/dashboard/top-products/${buildQueryParams({ limit })}`,
         method: "GET",
         headers: createHeaders(token),
       }),
+      providesTags: [{ type: "TopProducts", id: "LIST" }],
+      keepUnusedDataFor: 5 * 60,
     }),
 
-    // Get recent orders
     getRecentOrders: builder.query({
       query: ({ token, limit }) => ({
         url: `api/sales/dashboard/recent-orders/${buildQueryParams({ limit })}`,
         method: "GET",
         headers: createHeaders(token),
       }),
+      providesTags: [{ type: "RecentOrders", id: "LIST" }],
+      keepUnusedDataFor: 60,
     }),
 
-    // Get recent bookings
     getRecentBookings: builder.query({
       query: ({ token, limit }) => ({
         url: `api/sales/dashboard/recent-bookings/${buildQueryParams({ limit })}`,
         method: "GET",
         headers: createHeaders(token),
       }),
+      providesTags: [{ type: "RecentBookings", id: "LIST" }],
+      keepUnusedDataFor: 60,
     }),
 
-    // Get visitor stats
     getVisitorStats: builder.query({
       query: ({ token }) => ({
         url: "api/sales/dashboard/visitors/",
         method: "GET",
         headers: createHeaders(token),
       }),
+      providesTags: [{ type: "VisitorStats", id: "LIST" }],
+      keepUnusedDataFor: 3 * 60,
     }),
 
-    // Get category performance
     getCategoryPerformance: builder.query({
       query: ({ token }) => ({
         url: "api/sales/dashboard/category-performance/",
         method: "GET",
         headers: createHeaders(token),
       }),
+      providesTags: [{ type: "CategoryPerformance", id: "LIST" }],
+      keepUnusedDataFor: 5 * 60,
     }),
 
     // ==================== BOOKING API ====================
 
-    // Create booking (public or admin)
     createBooking: builder.mutation({
       query: ({ data, token }: { data: any; token?: string }) => ({
         url: "api/booking/bookings/",
@@ -668,21 +1048,13 @@ export const userAuthapi = createApi({
         body: data,
         headers: createHeaders(token),
       }),
-      invalidatesTags: ["Bookings", "BookingStats"],
+      invalidatesTags: [
+        "Bookings",
+        "BookingStats",
+        { type: "RecentBookings", id: "LIST" },
+      ],
     }),
 
-    // Admin create booking (with auth + cache invalidation)
-    adminCreateBooking: builder.mutation({
-      query: ({ data, token }: { data: any; token: string }) => ({
-        url: "api/booking/bookings/",
-        method: "POST",
-        body: data,
-        headers: createHeaders(token),
-      }),
-      invalidatesTags: ["Bookings", "BookingStats"],
-    }),
-
-    // Get all bookings (admin)
     getBookings: builder.query({
       query: ({
         token,
@@ -697,10 +1069,20 @@ export const userAuthapi = createApi({
         method: "GET",
         headers: createHeaders(token),
       }),
-      providesTags: ["Bookings"],
+      providesTags: (result: any) => {
+        if (Array.isArray(result)) {
+          return [
+            ...result.map((b: any) => ({
+              type: "Bookings" as const,
+              id: b.id,
+            })),
+            { type: "Bookings" as const, id: "LIST" },
+          ];
+        }
+        return [{ type: "Bookings" as const, id: "LIST" }];
+      },
     }),
 
-    // Get single booking (admin)
     getBooking: builder.query({
       query: ({ id, token }) => ({
         url: `api/booking/bookings/${id}/`,
@@ -712,7 +1094,6 @@ export const userAuthapi = createApi({
       ],
     }),
 
-    // Update booking (admin)
     updateBooking: builder.mutation({
       query: ({ id, data, token }) => ({
         url: `api/booking/bookings/${id}/`,
@@ -724,10 +1105,10 @@ export const userAuthapi = createApi({
         "Bookings",
         { type: "BookingDetail" as const, id: arg.id },
         "BookingStats",
+        { type: "RecentBookings", id: "LIST" },
       ],
     }),
 
-    // Update booking status (admin)
     updateBookingStatus: builder.mutation({
       query: ({ id, status, token }) => ({
         url: `api/booking/bookings/${id}/update_status/`,
@@ -739,10 +1120,10 @@ export const userAuthapi = createApi({
         "Bookings",
         { type: "BookingDetail" as const, id: arg.id },
         "BookingStats",
+        { type: "RecentBookings", id: "LIST" },
       ],
     }),
 
-    // Update measurements for a booking (admin)
     updateMeasurements: builder.mutation({
       query: ({ id, data, token }) => ({
         url: `api/booking/bookings/${id}/update_measurements/`,
@@ -757,17 +1138,19 @@ export const userAuthapi = createApi({
       ],
     }),
 
-    // Delete booking (admin)
     deleteBooking: builder.mutation({
       query: ({ id, token }) => ({
         url: `api/booking/bookings/${id}/`,
         method: "DELETE",
         headers: createHeaders(token),
       }),
-      invalidatesTags: ["Bookings", "BookingStats"],
+      invalidatesTags: [
+        "Bookings",
+        "BookingStats",
+        { type: "RecentBookings", id: "LIST" },
+      ],
     }),
 
-    // Get booking stats (admin)
     getBookingStats: builder.query({
       query: ({ token }) => ({
         url: "api/booking/bookings/stats/",
@@ -777,35 +1160,19 @@ export const userAuthapi = createApi({
       providesTags: ["BookingStats"],
     }),
 
-    // Customer lookup (admin)
     customerLookup: builder.query({
       query: ({ query, token }) => ({
         url: `api/booking/customer-lookup/?q=${query}`,
         method: "GET",
         headers: createHeaders(token),
       }),
+      keepUnusedDataFor: 30,
     }),
 
-    // Generate bill number (admin)
     generateBillNumber: builder.query({
       query: ({ token }) => ({
-        url: "api/bookings/generate-bill-number/",
+        url: "api/booking/generate-bill/",
         method: "GET",
-        headers: createHeaders(token),
-      }),
-    }),
-    deleteUser: builder.mutation({
-      query: ({ userId, token }) => ({
-        url: `api/accounts/admin-users/${userId}/`,
-        method: "DELETE",
-        headers: createHeaders(token),
-      }),
-    }),
-    updateUserState: builder.mutation({
-      query: ({ userId, state, token }) => ({
-        url: `api/accounts/admin-users/${userId}/update_state/`,
-        method: "PATCH",
-        body: { state },
         headers: createHeaders(token),
       }),
     }),
@@ -813,6 +1180,7 @@ export const userAuthapi = createApi({
 });
 
 export const {
+  // Auth & User
   useUserDeviceMutation,
   useAllUsersQuery,
   useGetLoggedUserQuery,
@@ -820,6 +1188,9 @@ export const {
   useUpdateUserProfileMutation,
   useChangeUserPasswordMutation,
   useRefreshTokenMutation,
+  useDeleteUserMutation,
+  useUpdateUserStateMutation,
+  // Products
   useProductsRegistrationMutation,
   useProductsUpdateMutation,
   useProductImageMutation,
@@ -835,44 +1206,53 @@ export const {
   useNotifyuserMutation,
   useGetnotifyuserQuery,
   useDeleteProductMutation,
+  // Cart
   useCartViewQuery,
   useCartPostMutation,
   useCartUpdateMutation,
   useCartDeleteMutation,
   useClearCartMutation,
+  // Search
   useSearchPostMutation,
   usePopularKeywordsQuery,
+  // Categories
   useCategoryViewQuery,
   useGetCategoryQuery,
   useAddCategoryMutation,
   useUpgradeCategoryMutation,
   useDeleteCategoryMutation,
+  // Redeem Codes
   useRedeemCodeViewQuery,
   useVerifyRedeemCodeMutation,
   useAddRedeemCodeMutation,
   useDeleteRedeemCodeMutation,
   useUpdateRedeemCodeMutation,
+  // Layout
   useGetlayoutQuery,
   useCreateorUpdatelayoutMutation,
+  // Reviews
   usePostReviewMutation,
   useUpdateReviewMutation,
   useDeleteReviewMutation,
   useGetReviewQuery,
   useGetUserReviewQuery,
+  // Sales / Orders
   usePostSaleMutation,
-  useGetshippingQuery,
-  useGetdefaultshippingQuery,
-  useShippingMutation,
-  useUpdateshippingMutation,
-  useDeleteshippingMutation,
   useGetOrdersQuery,
   useGetStocksQuery,
   useUpdateSaleMutation,
   useDeleteSaleMutation,
   useSalesRetrieveQuery,
+  // Shipping
+  useGetshippingQuery,
+  useGetdefaultshippingQuery,
+  useShippingMutation,
+  useUpdateshippingMutation,
+  useDeleteshippingMutation,
+  // Newsletter
   usePostnewsletterMutation,
   useGetnewsletterQuery,
-  // Dashboard API
+  // Dashboard
   useGetDashboardStatsQuery,
   useGetSalesChartQuery,
   useGetTopProductsQuery,
@@ -880,9 +1260,8 @@ export const {
   useGetRecentBookingsQuery,
   useGetVisitorStatsQuery,
   useGetCategoryPerformanceQuery,
-  // Booking API (unified booking + measurements)
+  // Booking
   useCreateBookingMutation,
-  useAdminCreateBookingMutation,
   useGetBookingsQuery,
   useGetBookingQuery,
   useUpdateBookingMutation,
@@ -892,6 +1271,4 @@ export const {
   useGetBookingStatsQuery,
   useCustomerLookupQuery,
   useGenerateBillNumberQuery,
-  useDeleteUserMutation,
-  useUpdateUserStateMutation,
 } = userAuthapi;

@@ -26,6 +26,7 @@ const FeatureProduct = dynamic(
 
 interface Image {
   image: string;
+  color?: string | null;
 }
 
 interface VariantObject {
@@ -105,15 +106,16 @@ const ProductSection = ({ product }: { product: Product }) => {
     name: string;
   } | null>(null);
 
-  // Filter images by selected color; fall back to all images if none match
-  const filteredImages = useMemo(() => {
+  const sortedImages = useMemo(() => {
     if (!product.images) return [];
     if (!selectedColor) return product.images;
-    const colorImages = product.images.filter(
+    const matching = product.images.filter(
       (img: any) => img.color === selectedColor.code,
     );
-    // If no images are tagged with this color, show all images
-    return colorImages.length > 0 ? colorImages : product.images;
+    const rest = product.images.filter(
+      (img: any) => img.color !== selectedColor.code,
+    );
+    return [...matching, ...rest];
   }, [product.images, selectedColor]);
 
   return (
@@ -123,7 +125,10 @@ const ProductSection = ({ product }: { product: Product }) => {
           <div className="flex flex-col">
             <div className="postWrapper flex mmd:flex-wrap max-mmd:flex-col gap-3">
               {product && product.images && (
-                <ImageContainer images={filteredImages} />
+                <ImageContainer
+                  images={sortedImages}
+                  selectedColorCode={selectedColor?.code}
+                />
               )}
             </div>
           </div>
