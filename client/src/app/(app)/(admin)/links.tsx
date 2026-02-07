@@ -6,13 +6,13 @@ import {
   BadgePercent,
   MessageCircle,
   CalendarCheck,
-  Mail
+  Mail,
+  BookOpenText,
 } from "lucide-react";
 
 export const Links = [
   {
     title: "Dashboard",
-    label: "9",
     icon: Home,
     href: "/dashboard",
   },
@@ -23,7 +23,6 @@ export const Links = [
   },
   {
     title: "Products",
-    label: "9",
     collapsible: true,
     isactive: true,
     href: "/products",
@@ -38,7 +37,6 @@ export const Links = [
   },
   {
     title: "Sales",
-    label: "9",
     icon: BadgePercent,
     href: "/sales",
   },
@@ -49,7 +47,6 @@ export const Links = [
   },
   {
     title: "Reviews",
-    label: "9",
     icon: MessageCircle,
     href: "/user-reviews",
   },
@@ -59,11 +56,13 @@ export const Links = [
     href: "/newsletter",
   },
   {
+    title: "Manual",
+    icon: BookOpenText,
+    href: "/manual",
+  },
+  {
     title: "Settings",
-    label: "9",
     icon: Settings,
     href: "/settings",
   },
 ];
-
-

@@ -22,6 +22,8 @@ import {
   Package,
   Truck,
   X,
+  Plus,
+  CalendarIcon,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -72,6 +74,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
 import { useAuthUser } from "@/hooks/use-auth-user";
@@ -83,6 +93,7 @@ import {
   useDeleteBookingMutation,
   useGetBookingStatsQuery,
   useCustomerLookupQuery,
+  useAdminCreateBookingMutation,
 } from "@/lib/store/Service/api";
 
 const statusColors: Record<string, string> = {
@@ -215,6 +226,43 @@ function formatTimeAMPM(time: string): string {
   return `${String(hours).padStart(2, "0")}:${minutes} ${ampm}`;
 }
 
+// Schema for admin create booking form
+const createBookingSchema = z.object({
+  name: z.string().min(2, "Name must be at least 2 characters"),
+  email: z.string().email("Please enter a valid email address"),
+  phone_number: z.string().min(10, "Please enter a valid phone number"),
+  location: z.string().min(1, "Please enter an address or location"),
+  measurement_type: z.enum(["in_store", "home_visit", "self"]),
+  preferred_date: z.date({ required_error: "Please select a date" }),
+  preferred_time: z.string().min(1, "Please select a time"),
+  customer_notes: z.string().optional(),
+  // Optional measurements when admin fills them directly
+  coat_measurements: z.record(z.record(z.string())).optional(),
+  pant_measurements: z.record(z.record(z.string())).optional(),
+  shirt_measurements: z.record(z.record(z.string())).optional(),
+});
+
+type CreateBookingFormData = z.infer<typeof createBookingSchema>;
+
+const timeSlots = [
+  { value: "09:00", label: "09:00 AM" },
+  { value: "09:30", label: "09:30 AM" },
+  { value: "10:00", label: "10:00 AM" },
+  { value: "10:30", label: "10:30 AM" },
+  { value: "11:00", label: "11:00 AM" },
+  { value: "11:30", label: "11:30 AM" },
+  { value: "12:00", label: "12:00 PM" },
+  { value: "12:30", label: "12:30 PM" },
+  { value: "14:00", label: "02:00 PM" },
+  { value: "14:30", label: "02:30 PM" },
+  { value: "15:00", label: "03:00 PM" },
+  { value: "15:30", label: "03:30 PM" },
+  { value: "16:00", label: "04:00 PM" },
+  { value: "16:30", label: "04:30 PM" },
+  { value: "17:00", label: "05:00 PM" },
+  { value: "17:30", label: "05:30 PM" },
+];
+
 export default function AdminBookingsPage() {
   const { accessToken: token } = useAuthUser();
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -222,6 +270,7 @@ export default function AdminBookingsPage() {
   const [selectedBookingId, setSelectedBookingId] = useState<number | null>(
     null,
   );
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [deleteBookingId, setDeleteBookingId] = useState<number | null>(null);
   const [lookupQuery, setLookupQuery] = useState("");
   const [isSaving, setIsSaving] = useState(false);
@@ -261,6 +310,8 @@ export default function AdminBookingsPage() {
   const [updateStatus] = useUpdateBookingStatusMutation();
   const [updateMeasurements] = useUpdateMeasurementsMutation();
   const [deleteBooking] = useDeleteBookingMutation();
+  const [adminCreateBooking, { isLoading: isCreating }] =
+    useAdminCreateBookingMutation();
 
   const form = useForm<MeasurementFormData>({
     resolver: zodResolver(measurementSchema),
@@ -363,6 +414,85 @@ export default function AdminBookingsPage() {
     // Form will auto-populate via useEffect when selectedBooking is fetched
   };
 
+  // ---- Create Booking Form ----
+  const createForm = useForm<CreateBookingFormData>({
+    resolver: zodResolver(createBookingSchema),
+    defaultValues: {
+      name: "",
+      email: "",
+      phone_number: "",
+      location: "",
+      measurement_type: "in_store",
+      preferred_time: "",
+      customer_notes: "",
+      coat_measurements: {},
+      pant_measurements: {},
+      shirt_measurements: {},
+    },
+  });
+
+  const watchCreateMeasurementType = createForm.watch("measurement_type");
+
+  const handleCreateMeasurementChange = (
+    type: "coat" | "pant" | "shirt",
+    field: string,
+    column: "A" | "B",
+    value: string,
+  ) => {
+    const fieldName = `${type}_measurements` as const;
+    const current = createForm.getValues(fieldName) || {};
+    createForm.setValue(fieldName, {
+      ...current,
+      [field]: {
+        ...(current[field] || {}),
+        [column]: value,
+      },
+    });
+  };
+
+  const handleCreateBooking = async (data: CreateBookingFormData) => {
+    if (!token) {
+      toast.error("You must be logged in to create a booking");
+      return;
+    }
+    try {
+      const payload: any = {
+        name: data.name,
+        email: data.email,
+        phone_number: data.phone_number,
+        location: data.location,
+        measurement_type: data.measurement_type,
+        preferred_date: format(data.preferred_date, "yyyy-MM-dd"),
+        preferred_time: data.preferred_time,
+        customer_notes: data.customer_notes || "",
+      };
+
+      // Include measurements if provided
+      const hasCoat =
+        data.coat_measurements &&
+        Object.keys(data.coat_measurements).length > 0;
+      const hasPant =
+        data.pant_measurements &&
+        Object.keys(data.pant_measurements).length > 0;
+      const hasShirt =
+        data.shirt_measurements &&
+        Object.keys(data.shirt_measurements).length > 0;
+
+      if (hasCoat) payload.coat_measurements = data.coat_measurements;
+      if (hasPant) payload.pant_measurements = data.pant_measurements;
+      if (hasShirt) payload.shirt_measurements = data.shirt_measurements;
+
+      await adminCreateBooking({ data: payload, token }).unwrap();
+      toast.success("Booking created successfully!");
+      setCreateDialogOpen(false);
+      createForm.reset();
+      refetch();
+    } catch (error: any) {
+      console.error("Create booking error:", error);
+      toast.error(error?.data?.detail || "Failed to create booking");
+    }
+  };
+
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
@@ -373,10 +503,16 @@ export default function AdminBookingsPage() {
             Manage customer bookings and record measurements
           </p>
         </div>
-        <Button onClick={() => refetch()} variant="outline" size="sm">
-          <RefreshCw className="w-4 h-4 mr-2" />
-          Refresh
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={() => refetch()} variant="outline" size="sm">
+            <RefreshCw className="w-4 h-4 mr-2" />
+            Refresh
+          </Button>
+          <Button onClick={() => setCreateDialogOpen(true)} size="sm">
+            <Plus className="w-4 h-4 mr-2" />
+            Create Booking
+          </Button>
+        </div>
       </div>
 
       {/* Stats Cards */}
@@ -548,7 +684,9 @@ export default function AdminBookingsPage() {
                         <Badge variant="outline" className="w-fit text-xs mt-1">
                           {b.measurement_type === "in_store"
                             ? "🏪 In-Store"
-                            : "🏠 Home Visit"}
+                            : b.measurement_type === "self"
+                              ? "📏 Self"
+                              : "🏠 Home Visit"}
                         </Badge>
                       </div>
                     </TableCell>
@@ -733,7 +871,9 @@ export default function AdminBookingsPage() {
                           <Badge variant="outline">
                             {selectedBooking.measurement_type === "in_store"
                               ? "🏪 In-Store"
-                              : "🏠 Home Visit"}
+                              : selectedBooking.measurement_type === "self"
+                                ? "📏 Self"
+                                : "🏠 Home Visit"}
                           </Badge>
                         </div>
                         <div>
@@ -926,6 +1066,351 @@ export default function AdminBookingsPage() {
               </div>
             )
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Create Booking Dialog */}
+      <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Plus className="w-5 h-5" />
+              Create New Booking
+            </DialogTitle>
+            <DialogDescription>
+              Create a booking and optionally record measurements for a customer
+            </DialogDescription>
+          </DialogHeader>
+
+          <form
+            onSubmit={createForm.handleSubmit(handleCreateBooking)}
+            className="space-y-5"
+          >
+            {/* Customer Info */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label
+                  htmlFor="create-name"
+                  className="flex items-center gap-2"
+                >
+                  <User className="w-4 h-4" />
+                  Full Name *
+                </Label>
+                <Input
+                  id="create-name"
+                  placeholder="Customer full name"
+                  {...createForm.register("name")}
+                  className={cn(
+                    createForm.formState.errors.name && "border-red-500",
+                  )}
+                />
+                {createForm.formState.errors.name && (
+                  <p className="text-sm text-red-500">
+                    {createForm.formState.errors.name.message}
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label
+                  htmlFor="create-email"
+                  className="flex items-center gap-2"
+                >
+                  <Mail className="w-4 h-4" />
+                  Email Address *
+                </Label>
+                <Input
+                  id="create-email"
+                  type="email"
+                  placeholder="Customer email"
+                  {...createForm.register("email")}
+                  className={cn(
+                    createForm.formState.errors.email && "border-red-500",
+                  )}
+                />
+                {createForm.formState.errors.email && (
+                  <p className="text-sm text-red-500">
+                    {createForm.formState.errors.email.message}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label
+                  htmlFor="create-phone"
+                  className="flex items-center gap-2"
+                >
+                  <Phone className="w-4 h-4" />
+                  Phone Number *
+                </Label>
+                <Input
+                  id="create-phone"
+                  placeholder="Customer phone number"
+                  {...createForm.register("phone_number")}
+                  className={cn(
+                    createForm.formState.errors.phone_number &&
+                      "border-red-500",
+                  )}
+                />
+                {createForm.formState.errors.phone_number && (
+                  <p className="text-sm text-red-500">
+                    {createForm.formState.errors.phone_number.message}
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label
+                  htmlFor="create-location"
+                  className="flex items-center gap-2"
+                >
+                  <MapPin className="w-4 h-4" />
+                  Address / Location *
+                </Label>
+                <Input
+                  id="create-location"
+                  placeholder="Customer address"
+                  {...createForm.register("location")}
+                  className={cn(
+                    createForm.formState.errors.location && "border-red-500",
+                  )}
+                />
+                {createForm.formState.errors.location && (
+                  <p className="text-sm text-red-500">
+                    {createForm.formState.errors.location.message}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Measurement Type */}
+            <div className="space-y-3">
+              <Label className="text-base font-medium">Measurement Type</Label>
+              <RadioGroup
+                defaultValue="in_store"
+                onValueChange={(value) =>
+                  createForm.setValue(
+                    "measurement_type",
+                    value as "in_store" | "home_visit" | "self",
+                  )
+                }
+                className="grid grid-cols-3 gap-4"
+              >
+                <Label
+                  htmlFor="create-in_store"
+                  className="flex flex-col items-center justify-center rounded-xl border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground cursor-pointer [&:has([data-state=checked])]:border-primary [&:has([data-state=checked])]:bg-primary/5"
+                >
+                  <RadioGroupItem
+                    value="in_store"
+                    id="create-in_store"
+                    className="sr-only"
+                  />
+                  <div className="text-2xl mb-1">🏪</div>
+                  <div className="font-medium text-sm">In-Store</div>
+                  <div className="text-xs text-muted-foreground mt-1">
+                    Visit shop
+                  </div>
+                </Label>
+                <Label
+                  htmlFor="create-home_visit"
+                  className="flex flex-col items-center justify-center rounded-xl border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground cursor-pointer [&:has([data-state=checked])]:border-primary [&:has([data-state=checked])]:bg-primary/5"
+                >
+                  <RadioGroupItem
+                    value="home_visit"
+                    id="create-home_visit"
+                    className="sr-only"
+                  />
+                  <div className="text-2xl mb-1">🏠</div>
+                  <div className="font-medium text-sm">Home Visit</div>
+                  <div className="text-xs text-muted-foreground mt-1">
+                    At doorstep
+                  </div>
+                </Label>
+                <Label
+                  htmlFor="create-self"
+                  className="flex flex-col items-center justify-center rounded-xl border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground cursor-pointer [&:has([data-state=checked])]:border-primary [&:has([data-state=checked])]:bg-primary/5"
+                >
+                  <RadioGroupItem
+                    value="self"
+                    id="create-self"
+                    className="sr-only"
+                  />
+                  <div className="text-2xl mb-1">📏</div>
+                  <div className="font-medium text-sm">Self</div>
+                  <div className="text-xs text-muted-foreground mt-1">
+                    Customer provided
+                  </div>
+                </Label>
+              </RadioGroup>
+            </div>
+
+            {/* Date and Time */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="flex items-center gap-2">
+                  <CalendarIcon className="w-4 h-4" />
+                  Preferred Date *
+                </Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !createForm.watch("preferred_date") &&
+                          "text-muted-foreground",
+                        createForm.formState.errors.preferred_date &&
+                          "border-red-500",
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {createForm.watch("preferred_date")
+                        ? format(createForm.watch("preferred_date"), "PPP")
+                        : "Select a date"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <CalendarComponent
+                      mode="single"
+                      selected={createForm.watch("preferred_date")}
+                      onSelect={(date) =>
+                        date && createForm.setValue("preferred_date", date)
+                      }
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+                {createForm.formState.errors.preferred_date && (
+                  <p className="text-sm text-red-500">
+                    {createForm.formState.errors.preferred_date.message}
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label className="flex items-center gap-2">
+                  <Clock className="w-4 h-4" />
+                  Preferred Time *
+                </Label>
+                <select
+                  {...createForm.register("preferred_time")}
+                  className={cn(
+                    "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+                    createForm.formState.errors.preferred_time &&
+                      "border-red-500",
+                  )}
+                >
+                  <option value="">Select a time</option>
+                  {timeSlots.map((time) => (
+                    <option key={time.value} value={time.value}>
+                      {time.label}
+                    </option>
+                  ))}
+                </select>
+                {createForm.formState.errors.preferred_time && (
+                  <p className="text-sm text-red-500">
+                    {createForm.formState.errors.preferred_time.message}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Notes */}
+            <div className="space-y-2">
+              <Label htmlFor="create-notes">Additional Notes (Optional)</Label>
+              <Textarea
+                id="create-notes"
+                placeholder="Any special requests or notes about this booking..."
+                {...createForm.register("customer_notes")}
+                rows={2}
+              />
+            </div>
+
+            <Separator />
+
+            {/* Optional: Record Measurements Now */}
+            <div className="space-y-3">
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+                Record Measurements (Optional)
+              </h3>
+              <p className="text-xs text-muted-foreground">
+                You can also record measurements later from the booking detail
+                view.
+              </p>
+              <Tabs defaultValue="coat" className="w-full">
+                <TabsList className="grid grid-cols-3 h-8">
+                  <TabsTrigger value="coat" className="text-xs">
+                    Coat & Safari
+                  </TabsTrigger>
+                  <TabsTrigger value="pant" className="text-xs">
+                    Pant
+                  </TabsTrigger>
+                  <TabsTrigger value="shirt" className="text-xs">
+                    Shirt
+                  </TabsTrigger>
+                </TabsList>
+                <TabsContent value="coat" className="mt-2">
+                  <MeasurementGrid
+                    fields={coatFields}
+                    measurements={createForm.watch("coat_measurements") || {}}
+                    onChange={(f, c, v) =>
+                      handleCreateMeasurementChange("coat", f, c, v)
+                    }
+                    title="COAT & SAFARI, W. COAT"
+                  />
+                </TabsContent>
+                <TabsContent value="pant" className="mt-2">
+                  <MeasurementGrid
+                    fields={pantFields}
+                    measurements={createForm.watch("pant_measurements") || {}}
+                    onChange={(f, c, v) =>
+                      handleCreateMeasurementChange("pant", f, c, v)
+                    }
+                    title="PANT"
+                  />
+                </TabsContent>
+                <TabsContent value="shirt" className="mt-2">
+                  <MeasurementGrid
+                    fields={shirtFields}
+                    measurements={createForm.watch("shirt_measurements") || {}}
+                    onChange={(f, c, v) =>
+                      handleCreateMeasurementChange("shirt", f, c, v)
+                    }
+                    title="SHIRT"
+                  />
+                </TabsContent>
+              </Tabs>
+            </div>
+
+            {/* Actions */}
+            <DialogFooter className="gap-2 pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setCreateDialogOpen(false);
+                  createForm.reset();
+                }}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={isCreating}>
+                {isCreating ? (
+                  <span className="flex items-center gap-2">
+                    <span className="animate-spin">⏳</span>
+                    Creating...
+                  </span>
+                ) : (
+                  <>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Create Booking
+                  </>
+                )}
+              </Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
 

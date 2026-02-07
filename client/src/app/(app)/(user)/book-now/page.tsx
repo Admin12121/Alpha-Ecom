@@ -35,21 +35,79 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { useCreateBookingMutation } from "@/lib/store/Service/api";
+
+const coatFields = ["L", "C", "W", "H", "S", "B", "SL", "N"];
+const pantFields = ["L", "W", "H", "T", "HIL", "K", "B"];
+const shirtFields = ["L", "C", "W", "H", "S", "SL", "N"];
 
 const bookingSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
   email: z.string().email("Please enter a valid email address"),
   phone_number: z.string().min(10, "Please enter a valid phone number"),
   location: z.string().min(5, "Please enter your address"),
-  measurement_type: z.enum(["in_store", "home_visit"]),
+  measurement_type: z.enum(["in_store", "home_visit", "self"]),
   preferred_date: z.date({ required_error: "Please select a date" }),
   preferred_time: z.string().min(1, "Please select a time"),
   customer_notes: z.string().optional(),
+  coat_measurements: z.record(z.record(z.string())).optional(),
+  pant_measurements: z.record(z.record(z.string())).optional(),
+  shirt_measurements: z.record(z.record(z.string())).optional(),
 });
 
 type BookingFormData = z.infer<typeof bookingSchema>;
+
+function SelfMeasurementGrid({
+  fields,
+  measurements,
+  onChange,
+  title,
+}: {
+  fields: string[];
+  measurements: Record<string, Record<string, string>>;
+  onChange: (field: string, column: "A" | "B", value: string) => void;
+  title: string;
+}) {
+  return (
+    <div className="border rounded-lg overflow-hidden">
+      <div className="bg-muted p-2 font-semibold text-center border-b text-sm">
+        {title}
+      </div>
+      <div className="grid grid-cols-3 border-b bg-muted/50">
+        <div className="p-2 text-center text-xs font-medium border-r"></div>
+        <div className="p-2 text-center text-xs font-medium border-r">A</div>
+        <div className="p-2 text-center text-xs font-medium">B</div>
+      </div>
+      {fields.map((field) => (
+        <div key={field} className="grid grid-cols-3 border-b last:border-b-0">
+          <div className="p-2 font-medium border-r bg-muted/30 flex items-center justify-center text-sm">
+            {field}
+          </div>
+          <div className="p-1 border-r">
+            <Input
+              type="text"
+              className="h-7 text-center text-sm"
+              value={measurements[field]?.A || ""}
+              onChange={(e) => onChange(field, "A", e.target.value)}
+              placeholder="-"
+            />
+          </div>
+          <div className="p-1">
+            <Input
+              type="text"
+              className="h-7 text-center text-sm"
+              value={measurements[field]?.B || ""}
+              onChange={(e) => onChange(field, "B", e.target.value)}
+              placeholder="-"
+            />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 export default function BookNowPage() {
   const [isSubmitted, setIsSubmitted] = useState(false);
@@ -65,15 +123,61 @@ export default function BookNowPage() {
       measurement_type: "in_store",
       preferred_time: "",
       customer_notes: "",
+      coat_measurements: {},
+      pant_measurements: {},
+      shirt_measurements: {},
     },
   });
 
+  const watchMeasurementType = form.watch("measurement_type");
+
+  const handleMeasurementChange = (
+    type: "coat" | "pant" | "shirt",
+    field: string,
+    column: "A" | "B",
+    value: string,
+  ) => {
+    const fieldName = `${type}_measurements` as const;
+    const current = form.getValues(fieldName) || {};
+    form.setValue(fieldName, {
+      ...current,
+      [field]: {
+        ...(current[field] || {}),
+        [column]: value,
+      },
+    });
+  };
+
   const onSubmit = async (data: BookingFormData) => {
     try {
-      const formattedData = {
-        ...data,
+      const formattedData: any = {
+        name: data.name,
+        email: data.email,
+        phone_number: data.phone_number,
+        location: data.location,
+        measurement_type: data.measurement_type,
         preferred_date: format(data.preferred_date, "yyyy-MM-dd"),
+        preferred_time: data.preferred_time,
+        customer_notes: data.customer_notes || "",
       };
+
+      // Include measurements if self-measurement type
+      if (data.measurement_type === "self") {
+        const hasCoat =
+          data.coat_measurements &&
+          Object.keys(data.coat_measurements).length > 0;
+        const hasPant =
+          data.pant_measurements &&
+          Object.keys(data.pant_measurements).length > 0;
+        const hasShirt =
+          data.shirt_measurements &&
+          Object.keys(data.shirt_measurements).length > 0;
+
+        if (hasCoat) formattedData.coat_measurements = data.coat_measurements;
+        if (hasPant) formattedData.pant_measurements = data.pant_measurements;
+        if (hasShirt)
+          formattedData.shirt_measurements = data.shirt_measurements;
+      }
 
       await createBooking({ data: formattedData }).unwrap();
       setIsSubmitted(true);
@@ -139,7 +243,8 @@ export default function BookNowPage() {
           </h1>
           <p className="text-neutral-600 dark:text-neutral-300 text-lg max-w-2xl">
             Experience premium tailoring with our expert measurement service.
-            Choose between in-store visits or home appointments.
+            Choose between in-store visits, home appointments, or provide your
+            own measurements.
           </p>
         </div>
 
@@ -172,6 +277,10 @@ export default function BookNowPage() {
                 <li className="flex items-center gap-2">
                   <CheckCircle2 className="w-4 h-4 text-green-600" />
                   Home visit option available
+                </li>
+                <li className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-green-600" />
+                  Self-measurement option for convenience
                 </li>
                 <li className="flex items-center gap-2">
                   <CheckCircle2 className="w-4 h-4 text-green-600" />
@@ -297,10 +406,10 @@ export default function BookNowPage() {
                     onValueChange={(value) =>
                       form.setValue(
                         "measurement_type",
-                        value as "in_store" | "home_visit",
+                        value as "in_store" | "home_visit" | "self",
                       )
                     }
-                    className="grid grid-cols-2 gap-4"
+                    className="grid grid-cols-3 gap-4"
                   >
                     <Label
                       htmlFor="in_store"
@@ -313,6 +422,9 @@ export default function BookNowPage() {
                       />
                       <div className="text-2xl mb-1">🏪</div>
                       <div className="font-medium text-sm">In-Store</div>
+                      <div className="text-[11px] text-muted-foreground mt-0.5">
+                        Visit our shop
+                      </div>
                     </Label>
                     <Label
                       htmlFor="home_visit"
@@ -325,9 +437,87 @@ export default function BookNowPage() {
                       />
                       <div className="text-2xl mb-1">🏠</div>
                       <div className="font-medium text-sm">Home Visit</div>
+                      <div className="text-[11px] text-muted-foreground mt-0.5">
+                        At your doorstep
+                      </div>
+                    </Label>
+                    <Label
+                      htmlFor="self"
+                      className="flex flex-col items-center justify-center rounded-xl border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground cursor-pointer [&:has([data-state=checked])]:border-purple-500 [&:has([data-state=checked])]:bg-purple-50 dark:[&:has([data-state=checked])]:bg-purple-900/20"
+                    >
+                      <RadioGroupItem
+                        value="self"
+                        id="self"
+                        className="sr-only"
+                      />
+                      <div className="text-2xl mb-1">📏</div>
+                      <div className="font-medium text-sm">Self</div>
+                      <div className="text-[11px] text-muted-foreground mt-0.5">
+                        Measure yourself
+                      </div>
                     </Label>
                   </RadioGroup>
                 </div>
+
+                {/* Self Measurement Section */}
+                {watchMeasurementType === "self" && (
+                  <div className="space-y-4 rounded-xl border-2 border-purple-200 dark:border-purple-800 bg-purple-50/50 dark:bg-purple-900/10 p-4">
+                    <div>
+                      <h3 className="font-semibold text-sm flex items-center gap-2">
+                        📐 Enter Your Measurements
+                      </h3>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Fill in the measurements you have. Use inches. Columns A
+                        and B are for two different sets of measurements if
+                        needed.
+                      </p>
+                    </div>
+
+                    <Tabs defaultValue="coat" className="w-full">
+                      <TabsList className="grid grid-cols-3 h-9">
+                        <TabsTrigger value="coat" className="text-xs">
+                          Coat & Safari
+                        </TabsTrigger>
+                        <TabsTrigger value="pant" className="text-xs">
+                          Pant
+                        </TabsTrigger>
+                        <TabsTrigger value="shirt" className="text-xs">
+                          Shirt
+                        </TabsTrigger>
+                      </TabsList>
+                      <TabsContent value="coat" className="mt-2">
+                        <SelfMeasurementGrid
+                          fields={coatFields}
+                          measurements={form.watch("coat_measurements") || {}}
+                          onChange={(f, c, v) =>
+                            handleMeasurementChange("coat", f, c, v)
+                          }
+                          title="COAT & SAFARI, W. COAT"
+                        />
+                      </TabsContent>
+                      <TabsContent value="pant" className="mt-2">
+                        <SelfMeasurementGrid
+                          fields={pantFields}
+                          measurements={form.watch("pant_measurements") || {}}
+                          onChange={(f, c, v) =>
+                            handleMeasurementChange("pant", f, c, v)
+                          }
+                          title="PANT"
+                        />
+                      </TabsContent>
+                      <TabsContent value="shirt" className="mt-2">
+                        <SelfMeasurementGrid
+                          fields={shirtFields}
+                          measurements={form.watch("shirt_measurements") || {}}
+                          onChange={(f, c, v) =>
+                            handleMeasurementChange("shirt", f, c, v)
+                          }
+                          title="SHIRT"
+                        />
+                      </TabsContent>
+                    </Tabs>
+                  </div>
+                )}
 
                 {/* Date and Time */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

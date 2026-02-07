@@ -11,7 +11,9 @@ const Footer = () => {
       <div className="flex gap-10 items-center lg:flex-row flex-col">
         <span className="flex flex-col gap-4 rounded-lg border border-primary/10 bg-primary/10 p-4 text-2xl lg:max-w-[443px] justify-between w-full">
           <div>
-            <p className="text-xl">Join our newsletter to get latest updates</p>
+            <p className="text-2xl/normal font-semibold">
+              Join our newsletter to get latest updates
+            </p>
           </div>
           <JoinNewsletterForm />
         </span>

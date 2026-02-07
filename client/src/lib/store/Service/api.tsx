@@ -660,14 +660,26 @@ export const userAuthapi = createApi({
 
     // ==================== BOOKING API ====================
 
-    // Create booking (public)
+    // Create booking (public or admin)
     createBooking: builder.mutation({
-      query: ({ data }) => ({
+      query: ({ data, token }: { data: any; token?: string }) => ({
         url: "api/booking/bookings/",
         method: "POST",
         body: data,
-        headers: createHeaders(),
+        headers: createHeaders(token),
       }),
+      invalidatesTags: ["Bookings", "BookingStats"],
+    }),
+
+    // Admin create booking (with auth + cache invalidation)
+    adminCreateBooking: builder.mutation({
+      query: ({ data, token }: { data: any; token: string }) => ({
+        url: "api/booking/bookings/",
+        method: "POST",
+        body: data,
+        headers: createHeaders(token),
+      }),
+      invalidatesTags: ["Bookings", "BookingStats"],
     }),
 
     // Get all bookings (admin)
@@ -870,6 +882,7 @@ export const {
   useGetCategoryPerformanceQuery,
   // Booking API (unified booking + measurements)
   useCreateBookingMutation,
+  useAdminCreateBookingMutation,
   useGetBookingsQuery,
   useGetBookingQuery,
   useUpdateBookingMutation,
