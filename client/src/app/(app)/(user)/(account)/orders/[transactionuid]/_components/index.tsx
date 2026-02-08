@@ -1,5 +1,11 @@
 "use client";
-import React, { useCallback, useDeferredValue, useMemo } from "react";
+import React, {
+  useCallback,
+  useDeferredValue,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   useSalesRetrieveQuery,
   useProductsByIdsQuery,
@@ -7,7 +13,7 @@ import {
 } from "@/lib/store/Service/api";
 import { useAuthUser } from "@/hooks/use-auth-user";
 import { MapPin, ShoppingCart, Truck } from "lucide-react";
-import { cn, delay } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import { LeftIcon, RightIcon } from "../../_components/icons";
 import Voucher from "@/app/(app)/(user)/checkout/[transitionuid]/_components/voucher";
 import { VoucherSkleton } from "@/app/(app)/(user)/checkout/[transitionuid]/_components/voucher";
@@ -80,38 +86,56 @@ export interface Order {
   expected_delivery_date?: string;
 }
 
-
-
 const OrderRetrieve = ({ transactionuid }: { transactionuid: string }) => {
   const { accessToken } = useAuthUser();
-  const { data: encryptedData, isLoading, refetch } = useSalesRetrieveQuery(
+  const {
+    data: encryptedData,
+    isLoading,
+    refetch,
+  } = useSalesRetrieveQuery(
     { transactionuid, token: accessToken },
-    { skip: !accessToken }
+    { skip: !accessToken },
   );
   const { data, loading } = useDecryptedData(encryptedData, isLoading);
   return (
     <PageSkeleton loading={loading}>
-      {data && accessToken && <ProductCard data={data as unknown as Order} token={accessToken} refetch={refetch} />}
+      {data && accessToken && (
+        <ProductCard
+          data={data as unknown as Order}
+          token={accessToken}
+          refetch={refetch}
+        />
+      )}
     </PageSkeleton>
   );
 };
 
-const ProductCard = ({ data, token, refetch }: { data: Order, token: string, refetch: any }) => {
+const ProductCard = ({
+  data,
+  token,
+  refetch,
+}: {
+  data: Order;
+  token: string;
+  refetch: any;
+}) => {
   const [updateSale] = useUpdateSaleMutation();
+  const isActionInProgressRef = useRef(false);
+  const [isUpdating, setIsUpdating] = useState(false);
   const productIds = useMemo(() => {
     return data?.products.map((item: CartItem) => item.product);
   }, [data]);
 
   const { data: products, isLoading } = useProductsByIdsQuery(
     { ids: productIds },
-    { skip: !productIds || productIds.length === 0 }
+    { skip: !productIds || productIds.length === 0 },
   );
 
   const productsWithData = useMemo(() => {
     if (!products) return [];
     return data?.products.map((cartItem: CartItem) => {
       const product = products.results.find(
-        (p: Product) => p.id === cartItem.product
+        (p: Product) => p.id === cartItem.product,
       );
       const variantDetails = Array.isArray(product.variants)
         ? product.variants.find((v: any) => v.id === cartItem.variant)
@@ -135,7 +159,7 @@ const ProductCard = ({ data, token, refetch }: { data: Order, token: string, ref
     (text: string, maxLength: number): string => {
       return text.length > maxLength ? `${text.slice(0, maxLength)}...` : text;
     },
-    []
+    [],
   );
 
   const formatDate = (date: Date): string => {
@@ -148,40 +172,50 @@ const ProductCard = ({ data, token, refetch }: { data: Order, token: string, ref
 
   const calculateEstimatedArrival = (
     created: string,
-    daysToAdd: number
+    daysToAdd: number,
   ): string => {
     const createdDate = new Date(created);
     createdDate.setDate(createdDate.getDate() + daysToAdd);
     return formatDate(createdDate);
   };
 
-  const handleUpdateSale = async (
-    id: number,
-    status: string,
-  ) => {
+  const handleUpdateSale = async (id: number, status: string) => {
+    if (isActionInProgressRef.current) return;
+    isActionInProgressRef.current = true;
+    setIsUpdating(true);
+
     const toastId = toast.loading(
       `Updating status for order ${id} to ${status}`,
       {
         position: "top-center",
-      }
+      },
     );
-    await delay(500);
-    const actualData = {
-      id: id,
-      status: status,
-    };
-    const res = await updateSale({ actualData, token });
-    if (res.data) {
-      toast.success("Status updated successfully", {
+    try {
+      const actualData = {
+        id: id,
+        status: status,
+      };
+      const res = await updateSale({ actualData, token });
+      if (res.data) {
+        toast.success("Status updated successfully", {
+          id: toastId,
+          position: "top-center",
+        });
+        refetch();
+      } else {
+        toast.error("Failed to update status", {
+          id: toastId,
+          position: "top-center",
+        });
+      }
+    } catch (e) {
+      toast.error("Something went wrong", {
         id: toastId,
         position: "top-center",
       });
-      refetch();
-    } else {
-      toast.error("Failed to update status", {
-        id: toastId,
-        position: "top-center",
-      });
+    } finally {
+      isActionInProgressRef.current = false;
+      setIsUpdating(false);
     }
   };
 
@@ -218,14 +252,16 @@ const ProductCard = ({ data, token, refetch }: { data: Order, token: string, ref
               {data.status == "unpaid" && (
                 <DropdownMenuContent>
                   <DropdownMenuItem
-                  // onClick={() => handleUpdateSale(data.id, "pending")}
+                    disabled={isUpdating}
+                    // onClick={() => handleUpdateSale(data.id, "pending")}
                   >
                     Report Issue
                   </DropdownMenuItem>
                   <DropdownMenuItem
+                    disabled={isUpdating}
                     onClick={() => handleUpdateSale(data.id, "cancelled")}
                   >
-                    Canclel Order
+                    Cancel Order
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               )}
@@ -248,10 +284,11 @@ const ProductCard = ({ data, token, refetch }: { data: Order, token: string, ref
                     ? "Delivered Successfully"
                     : data.status === "cancelled"
                       ? "Cancelled"
-                      : `Estimated arrival: ${data.expected_delivery_date ? formatDate(new Date(data.expected_delivery_date)) : calculateEstimatedArrival(
-                        data?.created,
-                        2
-                      )}`}
+                      : `Estimated arrival: ${
+                          data.expected_delivery_date
+                            ? formatDate(new Date(data.expected_delivery_date))
+                            : calculateEstimatedArrival(data?.created, 2)
+                        }`}
               </p>
             </span>
             <RightIcon className="dark:fill-white/70 dark:stroke-white/70 stroke-neutral-700 hidden lg:flex" />
@@ -267,31 +304,27 @@ const ProductCard = ({ data, token, refetch }: { data: Order, token: string, ref
       <div className="p-2 pb-0 flex gap-2 flex-col relative">
         <VoucherSkleton loading={isLoading}>
           {productsWithData.map((product: any) => (
-            <Voucher key={Math.random()} data={product} price={false} review={data.status === "delivered"} />
+            <Voucher
+              key={Math.random()}
+              data={product}
+              price={false}
+              review={data.status === "delivered"}
+            />
           ))}
         </VoucherSkleton>
         <Separator className="mt-1 bg-[hsl(var(--custombg))] h-[2px] relative before:absolute before:w-5 before:h-5 before:bg-[hsl(var(--custombg))] before:rounded-full before:-left-5 before:-bottom-2.5 after:absolute after:w-5 after:h-5 after:bg-[hsl(var(--custombg))] after:rounded-full after:-right-5 after:-bottom-2.5" />
         <div className="w-full flex justify-between items-center">
           <div className="w-full p-1 pb-2 gap-2 flex items-center">
-            <p>Total :</p>{" "}
-            {data.discount > 0 && (
-              <p>
-                रु {data?.total_amt}
-              </p>
-            )}{" "}
+            <p>Total :</p> {data.discount > 0 && <p>रु {data?.total_amt}</p>}{" "}
             <p
               className={cn(
-                data?.discount > 0 && "line-through text-neutral-950/50"
+                data?.discount > 0 && "line-through text-neutral-950/50",
               )}
             >
               रु {data?.sub_total}
             </p>
           </div>
-          {data.status === "unpaid" && (
-            <Complete_payment
-              data={data}
-            />
-          )}
+          {data.status === "unpaid" && <Complete_payment data={data} />}
         </div>
       </div>
     </div>

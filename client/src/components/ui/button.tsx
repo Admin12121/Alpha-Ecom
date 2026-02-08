@@ -35,12 +35,13 @@ const buttonVariants = cva(
       variant: "default",
       size: "default",
     },
-  }
+  },
 );
 
 export interface ButtonProps
-  extends React.ButtonHTMLAttributes<HTMLButtonElement>,
-  VariantProps<typeof buttonVariants> {
+  extends
+    React.ButtonHTMLAttributes<HTMLButtonElement>,
+    VariantProps<typeof buttonVariants> {
   asChild?: boolean;
   loading?: boolean;
   icon?: React.ReactNode;
@@ -59,29 +60,33 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       icon,
       endContent,
       onClick,
+      disabled,
       ...props
     },
-    ref
+    ref,
   ) => {
+    const isDisabled = disabled || loading;
     const Comp = asChild ? Slot : "button";
     const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+      if (isDisabled) return;
       const button = e.currentTarget;
       const x = e.clientX - button.getBoundingClientRect().left;
       const y = e.clientY - button.getBoundingClientRect().top;
       const ripples = document.createElement("span");
 
       ripples.style.cssText = `
-        left: ${x}px; 
-        top: ${y}px; 
-        position: absolute; 
-        transform: translate(-50%, -50%); 
-        pointer-events: none; 
-        border-radius: 50%; 
-        animation: ripple .8s linear infinite; 
+        left: ${x}px;
+        top: ${y}px;
+        position: absolute;
+        transform: translate(-50%, -50%);
+        pointer-events: none;
+        border-radius: 50%;
+        animation: ripple .8s linear infinite;
         transition: .5s;
-        ${variant === "default"
-          ? "background: #000000bd"
-          : "background: rgba(255, 255, 255, 0.7)"
+        ${
+          variant === "default"
+            ? "background: #000000bd"
+            : "background: rgba(255, 255, 255, 0.7)"
         }`;
       ripples.className = "ripple";
       button.appendChild(ripples);
@@ -97,16 +102,18 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       <Comp
         className={cn(
           "overflow-hidden relative",
-          buttonVariants({ variant, size, className })
+          buttonVariants({ variant, size, className }),
         )}
         ref={ref}
         onClick={handleClick}
+        disabled={isDisabled}
+        aria-disabled={isDisabled}
         {...props}
       >
         <>{loading ? <Spinner color="secondary" size="sm" /> : children}</>
       </Comp>
     );
-  }
+  },
 );
 Button.displayName = "Button";
 

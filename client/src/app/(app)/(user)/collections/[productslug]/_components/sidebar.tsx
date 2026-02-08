@@ -355,11 +355,9 @@ const Sidebar = ({
   };
   const calculateEstimatedArrival = (): string => {
     const today = new Date();
-    const weekAhead = new Date(today);
-    weekAhead.setDate(today.getDate() + 7);
-    const tenDaysAhead = new Date(today);
-    tenDaysAhead.setDate(today.getDate() + 10);
-    return `${formatDate(weekAhead)} - ${formatDate(tenDaysAhead)}`;
+    const deliveryDate = new Date(today);
+    deliveryDate.setDate(today.getDate() + 2);
+    return formatDate(deliveryDate);
   };
   const arrivalDate = calculateEstimatedArrival();
   const description = parseDescription(products.description);
@@ -614,7 +612,12 @@ const NotifyForm = ({ product, selectedVariant, stock }: NotifyFormProps) => {
 
   const emailValue = watch("email", "");
 
+  const [isNotifying, setIsNotifying] = useState(false);
+
   const onSubmit = async (data: any) => {
+    if (isNotifying) return;
+    setIsNotifying(true);
+
     const toastId = toast.loading("Adding to waiting list...", {
       position: "top-center",
     });
@@ -623,7 +626,6 @@ const NotifyForm = ({ product, selectedVariant, stock }: NotifyFormProps) => {
       variant: selectedVariant,
       product: product,
     };
-    await delay(500);
     const res = await notifyuser({ actualData, token: accessToken });
     if (res.data) {
       toast.success("Added to waiting list", {
@@ -637,6 +639,7 @@ const NotifyForm = ({ product, selectedVariant, stock }: NotifyFormProps) => {
         position: "top-center",
       });
     }
+    setIsNotifying(false);
   };
 
   if (loading) {
@@ -681,7 +684,8 @@ const NotifyForm = ({ product, selectedVariant, stock }: NotifyFormProps) => {
             "w-full h-[40px] text-base disabled:cursor-not-allowed",
           )}
           type="submit"
-          disabled={notifyadded || !emailValue || !!errors.email}
+          loading={isNotifying}
+          disabled={notifyadded || !emailValue || !!errors.email || isNotifying}
         >
           Notify me when available
         </Button>

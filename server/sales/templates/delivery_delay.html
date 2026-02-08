@@ -3,7 +3,7 @@
     <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>Review Update - Alphasuits</title>
+        <title>Delivery Update - Alphasuits</title>
     </head>
 
     <body
@@ -72,7 +72,7 @@
                                         color: #1a1a1a;
                                     "
                                 >
-                                    Review Update
+                                    Delivery Update &#x1F4E6;
                                 </h1>
                                 <p
                                     style="
@@ -82,13 +82,13 @@
                                         margin: 0;
                                     "
                                 >
-                                    Your recent review submission has been
-                                    reviewed
+                                    An update on your order #{{ transactionuid
+                                    }}
                                 </p>
                             </td>
                         </tr>
 
-                        <!-- Content -->
+                        <!-- Greeting -->
                         <tr>
                             <td style="padding: 20px 40px 10px">
                                 <p
@@ -99,7 +99,8 @@
                                         margin: 0 0 15px;
                                     "
                                 >
-                                    Dear Valued Customer,
+                                    Dear
+                                    <strong>{{ first_name }}</strong>,
                                 </p>
                                 <p
                                     style="
@@ -109,17 +110,53 @@
                                         margin: 0 0 15px;
                                     "
                                 >
-                                    We regret to inform you that your recent
-                                    review submission has been removed as it did
-                                    not meet our community guidelines.
+                                    We sincerely apologize, but your order
+                                    delivery has been delayed due to unforeseen
+                                    circumstances. We understand how important
+                                    timely delivery is and we're doing
+                                    everything we can to get your order to you
+                                    as quickly as possible.
                                 </p>
+                                {% if delay_reason %}
+                                <div
+                                    style="
+                                        background-color: #fef9ef;
+                                        border-left: 4px solid #c8956c;
+                                        padding: 14px 18px;
+                                        margin: 10px 0 15px;
+                                        border-radius: 4px;
+                                    "
+                                >
+                                    <p
+                                        style="
+                                            font-size: 13px;
+                                            font-weight: 600;
+                                            color: #8a6540;
+                                            margin: 0 0 4px;
+                                            text-transform: uppercase;
+                                            letter-spacing: 0.5px;
+                                        "
+                                    >
+                                        Reason
+                                    </p>
+                                    <p
+                                        style="
+                                            font-size: 15px;
+                                            line-height: 1.5;
+                                            color: #555;
+                                            margin: 0;
+                                        "
+                                    >
+                                        {{ delay_reason }}
+                                    </p>
+                                </div>
+                                {% endif %}
                             </td>
                         </tr>
 
-                        <!-- Remark Box -->
-                        {% if remark %}
+                        <!-- New Delivery Date Box -->
                         <tr>
-                            <td style="padding: 0 40px 20px">
+                            <td align="center" style="padding: 10px 40px 20px">
                                 <table
                                     width="100%"
                                     cellpadding="0"
@@ -127,42 +164,44 @@
                                     border="0"
                                     style="
                                         background-color: #f8f8f8;
-                                        border-radius: 6px;
-                                        border-left: 4px solid #1a1a1a;
+                                        border-radius: 8px;
+                                        border: 2px solid #1a1a1a;
                                     "
                                 >
                                     <tr>
-                                        <td style="padding: 20px">
+                                        <td
+                                            align="center"
+                                            style="padding: 25px 20px"
+                                        >
                                             <p
                                                 style="
                                                     font-size: 14px;
-                                                    font-weight: 600;
-                                                    color: #1a1a1a;
+                                                    color: #666;
                                                     margin: 0 0 8px;
                                                     text-transform: uppercase;
-                                                    letter-spacing: 0.5px;
+                                                    letter-spacing: 1px;
+                                                    font-weight: 600;
                                                 "
                                             >
-                                                Reason
+                                                New Expected Delivery Date
                                             </p>
                                             <p
                                                 style="
-                                                    font-size: 15px;
-                                                    color: #333;
+                                                    font-size: 28px;
+                                                    font-weight: bold;
+                                                    color: #1a1a1a;
                                                     margin: 0;
-                                                    line-height: 1.6;
                                                 "
                                             >
-                                                {{ remark }}
+                                                {{ new_delivery_date }}
                                             </p>
                                         </td>
                                     </tr>
                                 </table>
                             </td>
                         </tr>
-                        {% endif %}
 
-                        <!-- Guidelines Reminder -->
+                        <!-- Apology Note -->
                         <tr>
                             <td style="padding: 0 40px 20px">
                                 <table
@@ -186,14 +225,16 @@
                                                     line-height: 1.6;
                                                 "
                                             >
-                                                &#x1F4DD;
+                                                &#x1F64F;
                                                 <strong
-                                                    >Want to try again?</strong
+                                                    >We're sorry for the
+                                                    inconvenience.</strong
                                                 >
-                                                Please review our community
-                                                guidelines and feel free to
-                                                resubmit your review. We
-                                                appreciate your feedback!
+                                                We value your patience and
+                                                appreciate your understanding.
+                                                Rest assured, your order is
+                                                being handled with the utmost
+                                                care.
                                             </p>
                                         </td>
                                     </tr>
@@ -201,11 +242,20 @@
                             </td>
                         </tr>
 
-                        <!-- CTA -->
+                        <!-- Track Order CTA -->
                         <tr>
                             <td align="center" style="padding: 0 40px 30px">
+                                <p
+                                    style="
+                                        font-size: 14px;
+                                        color: #666;
+                                        margin: 0 0 12px;
+                                    "
+                                >
+                                    You can track your order status anytime
+                                </p>
                                 <a
-                                    href="https://alphasuits.com.np"
+                                    href="https://alphasuits.com.np/orders"
                                     target="_blank"
                                     style="
                                         display: inline-block;
@@ -219,7 +269,7 @@
                                         letter-spacing: 0.5px;
                                     "
                                 >
-                                    Visit Alphasuits
+                                    Track My Order
                                 </a>
                             </td>
                         </tr>
@@ -251,8 +301,7 @@
                                                     margin: 0 0 10px;
                                                 "
                                             >
-                                                Have questions about this
-                                                decision?
+                                                Have questions about your order?
                                             </p>
                                             <p
                                                 style="

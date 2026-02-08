@@ -250,7 +250,7 @@ export default function DashboardPage() {
         <StatsCard
           title="Total Revenue"
           value={`Rs ${stats?.total_revenue?.toLocaleString() ?? 0}`}
-          description="+20.1% from last month"
+          description={`${stats?.revenue_change !== undefined ? (stats.revenue_change >= 0 ? "+" : "") + stats.revenue_change.toFixed(1) : "0"}% from last period`}
           icon={<DollarSign className="h-4 w-4 text-muted-foreground" />}
           loading={statsLoading}
         />

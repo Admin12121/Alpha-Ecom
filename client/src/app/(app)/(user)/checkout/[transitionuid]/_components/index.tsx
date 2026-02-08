@@ -5,6 +5,7 @@ import React, {
   useEffect,
   useMemo,
   useReducer,
+  useRef,
   useState,
 } from "react";
 import { v4 as uuidv4 } from "uuid";
@@ -106,6 +107,8 @@ const Checkout = ({ params }: { params: string }) => {
   const [defadd, setDefadd] = useState<string>("");
   const [redeemCode, { isLoading }] = useVerifyRedeemCodeMutation();
   const [postSale, { isLoading: placingOrder }] = usePostSaleMutation();
+  const isSubmittingRef = useRef(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [clearCart] = useClearCartMutation();
   const { setCartItems } = useCart();
   const [state, dispatch] = useReducer(reducer, {
@@ -230,7 +233,6 @@ const Checkout = ({ params }: { params: string }) => {
     const toastId = toast.loading("Verifying Redeem Code...", {
       position: "top-center",
     });
-    await delay(500);
     const res = await redeemCode({ code: code, token: accessToken });
     if (res.data) {
       toast.success("Code Verified", {
@@ -262,6 +264,10 @@ const Checkout = ({ params }: { params: string }) => {
   };
 
   const placeCodOrder = useCallback(async () => {
+    if (isSubmittingRef.current) return;
+    isSubmittingRef.current = true;
+    setIsSubmitting(true);
+
     const toastId = toast.loading("Creating order...", {
       position: "top-center",
     });
@@ -271,6 +277,8 @@ const Checkout = ({ params }: { params: string }) => {
         id: toastId,
         position: "top-center",
       });
+      isSubmittingRef.current = false;
+      setIsSubmitting(false);
       return;
     }
 
@@ -292,7 +300,6 @@ const Checkout = ({ params }: { params: string }) => {
     };
 
     try {
-      await delay(400);
       const res = await postSale({ actualData: payload, token: accessToken });
       if (res.data) {
         toast.success("Order placed. Pay cash on delivery.", {
@@ -314,12 +321,16 @@ const Checkout = ({ params }: { params: string }) => {
           id: toastId,
           position: "top-center",
         });
+        isSubmittingRef.current = false;
+        setIsSubmitting(false);
       }
     } catch (error: any) {
       toast.error("Failed to place order", {
         id: toastId,
         position: "top-center",
       });
+      isSubmittingRef.current = false;
+      setIsSubmitting(false);
     }
   }, [
     accessToken,
@@ -494,8 +505,8 @@ const Checkout = ({ params }: { params: string }) => {
                     type="button"
                     className="dark:bg-themeBlack border-none w-full"
                     onClick={placeCodOrder}
-                    loading={placingOrder}
-                    disabled={placingOrder}
+                    loading={placingOrder || isSubmitting}
+                    disabled={placingOrder || isSubmitting}
                   >
                     Place Order
                   </Button>

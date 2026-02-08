@@ -1,28 +1,24 @@
 import logging
 import re
-from datetime import datetime
 
 import requests
-from decouple import config
 from django.contrib.auth import get_user_model
-from django.core.exceptions import ObjectDoesNotExist
 from django.core.files.base import ContentFile
-from django.db import IntegrityError, transaction
+from django.db import transaction
 from django.db.models import Count
 from django.db.models.functions import TruncDay, TruncMonth, TruncWeek, TruncYear
-from django.http import JsonResponse
 from django.template.loader import render_to_string
 from django.utils import timezone
 from django.utils.crypto import get_random_string
 from django.utils.encoding import force_bytes, force_str
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
-from django.views import View
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.filters import OrderingFilter, SearchFilter
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.throttling import AnonRateThrottle
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 
@@ -67,10 +63,20 @@ class CustomPagination(PageNumberPagination):
 class NewsLetterViewSet(viewsets.ModelViewSet):
     queryset = NewLetter.objects.all().order_by("-id")
     serializer_class = NewsLetterSerializer
-    permission_classes = [AllowAny]
     renderer_classes = [UserRenderer]
     pagination_class = CustomPagination
     filter_backends = [SearchFilter, OrderingFilter]
+
+    # Allow POST for anyone; GET/LIST only for admin; block PUT/PATCH/DELETE for non-admin
+    http_method_names = ["get", "post", "head", "options"]
+
+    def get_permissions(self):
+        if self.action == "create":
+            self.permission_classes = [AllowAny]
+        else:
+            # list, retrieve, etc. require admin
+            self.permission_classes = [IsAuthenticated, IsAdminUser]
+        return super().get_permissions()
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
@@ -98,6 +104,12 @@ class UserViewSet(viewsets.ModelViewSet):
     def get_permissions(self):
         if self.action in ["list", "retrieve", "destroy", "get_all_users"]:
             self.permission_classes = [IsAuthenticated, IsAdminUser]
+        elif self.action in ["create", "login", "social_login"]:
+            self.permission_classes = [AllowAny]
+        elif self.action in ["update", "partial_update", "me", "device"]:
+            self.permission_classes = [IsAuthenticated]
+        else:
+            self.permission_classes = [IsAuthenticated]
         return super(UserViewSet, self).get_permissions()
 
     @encrypt_response
@@ -112,29 +124,27 @@ class UserViewSet(viewsets.ModelViewSet):
         serializer = UserRegistrationSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
-        try:
-            token = generate_token.make_token(user)
-            uid = urlsafe_base64_encode(force_bytes(user.pk))
-            domain = config("Frontend_Domain")
-            link = f"{domain}/auth/{uid}/{token}"
 
-            subject = "Active your account"
+        # Auto-activate the user (no activation email needed)
+        user.state = "active"
+        user.save(update_fields=["state"])
+
+        try:
+            # Send welcome email
+            subject = "Welcome to Alphasuits"
             body = render_to_string(
-                "active.html",
-                {
-                    "link": link,
-                },
+                "welcome.html",
+                {"email": user.email, "username": user.username},
             )
             send_email(subject, user.email, body)
+        except Exception as e:
+            logger.error("Failed to send welcome email for %s: %s", user.email, e)
 
-            return Response(
-                {"message": "Acivation link sent to your email"},
-                status=status.HTTP_200_OK,
-            )
-        except User.DoesNotExist:
-            return Response(
-                {"error": "Something went wrong"}, status=status.HTTP_404_NOT_FOUND
-            )
+        tokens = get_tokens_for_user(user)
+        return Response(
+            {"message": "Account created successfully!", "token": tokens},
+            status=status.HTTP_201_CREATED,
+        )
 
     @action(detail=False, methods=["post"])
     def social_login(self, request):
@@ -194,7 +204,8 @@ class UserViewSet(viewsets.ModelViewSet):
                     user.save(update_fields=["password"])
                     if avatar_url:
                         self._save_user_avatar(user, avatar_url, username)
-                    subject = ("Your account is now Active",)
+                    # Fixed: was a tuple bug (trailing comma made it a tuple)
+                    subject = "Your account is now Active"
                     body = render_to_string(
                         "welcome.html", {"email": email, "username": username}
                     )
@@ -213,27 +224,33 @@ class UserViewSet(viewsets.ModelViewSet):
 
     def _save_user_avatar(self, user, avatar_url, username):
         try:
-            response = requests.get(avatar_url)
-            response.raise_for_status()
-            user.profile.save(f"{username}_avatar.png", ContentFile(response.content))
-        except requests.RequestException as e:
-            logger.error("Failed to download avatar: %s", e)
+            response = requests.get(avatar_url, timeout=10)
+            if response.status_code == 200:
+                ext = avatar_url.rsplit(".", 1)[-1].split("?")[0]
+                if ext.lower() not in ["jpg", "jpeg", "png"]:
+                    ext = "jpg"
+                filename = f"profile/{username}_avatar.{ext}"
+                user.profile.save(filename, ContentFile(response.content), save=True)
         except Exception as e:
-            logger.error("Failed to save avatar: %s", e)
+            logger.error("Failed to save avatar for %s: %s", username, e)
 
     @action(detail=False, methods=["post"])
     def login(self, request):
-        serializer = UserLoginSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        email = serializer.validated_data["email"]
-        password = serializer.validated_data["password"]
+        email = request.data.get("email")
+        password = request.data.get("password")
 
-        User = get_user_model()
+        if not email or not password:
+            return Response(
+                {"error": "Email and password are required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         try:
             user = User.objects.get(email=email)
-        except ObjectDoesNotExist:
+        except User.DoesNotExist:
             return Response(
-                {"error": "User not found"}, status=status.HTTP_404_NOT_FOUND
+                {"error": "Invalid email or password"},
+                status=status.HTTP_401_UNAUTHORIZED,
             )
 
         if user.state == "blocked":
@@ -251,48 +268,40 @@ class UserViewSet(viewsets.ModelViewSet):
             )
 
         if not user.check_password(password):
-            user_data = {
-                "email": user.email,
-                "username": user.username,
-                "profile": (
-                    request.build_absolute_uri(user.profile.url)
-                    if user.profile
-                    else None
-                ),
-            }
             return Response(
-                {"error": "Password does not match", "user": user_data},
-                status=status.HTTP_400_BAD_REQUEST,
+                {"error": "Invalid email or password"},
+                status=status.HTTP_401_UNAUTHORIZED,
             )
 
+        tokens = get_tokens_for_user(user)
         return Response(
-            {
-                "message": "Login successful!",
-                "token": get_tokens_for_user(user),
-            },
+            {"message": "Login successful!", "token": tokens},
             status=status.HTTP_200_OK,
         )
 
     @action(detail=False, methods=["post"], permission_classes=[IsAuthenticated])
     def device(self, request):
+        data = request.data
         user = request.user
-        data = request.data.copy()
-        data["user"] = user.id
-        existing_device = UserDevice.objects.filter(
-            user=user, device_type=data["device_type"]
-        ).first()
-
-        if existing_device:
+        signature = data.get("signature")
+        if not signature:
             return Response(
-                {"message": "Device already exists"}, status=status.HTTP_400_BAD_REQUEST
+                {"error": "Signature is required"}, status=status.HTTP_400_BAD_REQUEST
             )
-
-        serializer = UserDeviceSerializer(data=data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response({"message": "Updated"}, status=status.HTTP_200_OK)
-
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        device, created = UserDevice.objects.update_or_create(
+            user=user,
+            signature=signature,
+            defaults={
+                "device_type": data.get("device_type", "unknown"),
+                "device_os": data.get("device_os", "unknown"),
+                "last_login": timezone.now(),
+                "ip_address": data.get("ip_address"),
+            },
+        )
+        return Response(
+            {"message": "Device registered" if created else "Device updated"},
+            status=status.HTTP_200_OK,
+        )
 
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
@@ -303,6 +312,7 @@ class UserViewSet(viewsets.ModelViewSet):
 
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop("partial", True)
+        # Always update the authenticated user's own profile only
         user = request.user
         serializer = self.get_serializer(user, data=request.data, partial=partial)
         serializer.is_valid(raise_exception=True)
@@ -338,7 +348,15 @@ class UserActivationView(APIView):
             )
 
 
+class PasswordResetThrottle(AnonRateThrottle):
+    """Custom throttle: 3 password reset requests per day."""
+
+    rate = "3/day"
+
+
 class PasswordResetView(APIView):
+    throttle_classes = [PasswordResetThrottle]
+
     def post(self, request):
         email = request.data.get("email")
         try:
@@ -401,7 +419,7 @@ class PasswordResetView(APIView):
                 )
                 send_email(subject, user.email, body)
                 return Response(
-                    {"success": "Your account has been activated successfully."},
+                    {"success": "Your password has been changed successfully."},
                     status=status.HTTP_200_OK,
                 )
             else:
@@ -415,24 +433,23 @@ class PasswordResetView(APIView):
 
 
 class AdminUserViewSet(viewsets.ModelViewSet):
-    queryset = User.objects.all().order_by("-created_at")
-    serializer_class = AdminUserDataSerializer
+    queryset = User.objects.all().order_by("-id")
+    serializer_class = UserDataSerializer
     renderer_classes = [UserRenderer]
     permission_classes = [IsAuthenticated, IsAdminUser]
-    filter_backends = [SearchFilter, OrderingFilter]
-    filterset_fields = ["state", "email"]
-    search_fields = ["username", "email"]
-    ordering_fields = ["email", "username"]
     pagination_class = CustomPagination
+    filter_backends = [SearchFilter, OrderingFilter]
+    search_fields = ["first_name", "last_name", "email", "username"]
+    ordering_fields = ["created_at", "first_name", "email"]
 
     def get_queryset(self):
         queryset = super().get_queryset()
-        exclude_data = self.request.query_params.get("exclude_by", "")
-        exclude_data = exclude_data.split(",")
-        if "active" in exclude_data:
-            queryset = queryset.exclude(state="active")
-        if "blocked" in exclude_data:
-            queryset = queryset.exclude(state="blocked")
+        state = self.request.query_params.get("state")
+        role = self.request.query_params.get("role")
+        if state:
+            queryset = queryset.filter(state=state)
+        if role:
+            queryset = queryset.filter(role=role)
         return queryset
 
     @action(detail=False, methods=["get"])
@@ -442,17 +459,11 @@ class AdminUserViewSet(viewsets.ModelViewSet):
         if page is not None:
             serializer = self.get_serializer(page, many=True)
             return self.get_paginated_response(serializer.data)
-
         serializer = self.get_serializer(queryset, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.data)
 
     @action(detail=False, methods=["get"], url_path="by-username/(?P<username>[^/.]+)")
     def retrieve_user_by_username(self, request, username=None):
-        if not request.user.is_admin or not request.user.role == "Admin":
-            return Response(
-                {"error": "Permission denied"}, status=status.HTTP_403_FORBIDDEN
-            )
-
         try:
             user = User.objects.get(username=username)
         except User.DoesNotExist:
@@ -460,277 +471,245 @@ class AdminUserViewSet(viewsets.ModelViewSet):
                 {"error": "User not found"}, status=status.HTTP_404_NOT_FOUND
             )
 
-        context = {"request": request}
-        user_data = AdminUserDataSerializer(user, context=context).data
-        user_data["delivery_address"] = DeliveryAddressSerializer(
-            user.delivery_address.all(), many=True
-        ).data
-        user_data["search_history"] = SearchHistorySerializer(
-            user.search_history.all(), many=True
-        ).data
-        user_data["devices"] = UserDeviceSerializer(user.devices.all(), many=True).data
-        user_data["site_view_logs"] = SiteViewLogSerializer(
-            user.site_view_logs.all(), many=True
-        ).data
+        serializer = UserDetailSerializer(user, context={"request": request})
+        user_data = serializer.data
+
+        # Get order stats
+        from sales.models import Sales
+
+        orders = Sales.objects.filter(costumer_name=user)
+        user_data["total_orders"] = orders.count()
+        user_data["total_spent"] = sum(o.total_amt for o in orders)
+        user_data["orders"] = [
+            {
+                "id": o.id,
+                "transactionuid": o.transactionuid,
+                "status": o.status,
+                "total_amt": o.total_amt,
+                "created": o.created,
+            }
+            for o in orders.order_by("-id")[:10]
+        ]
 
         return Response(user_data, status=status.HTTP_200_OK)
 
-    @transaction.atomic
-    @action(detail=False, methods=["patch"])
+    @action(detail=False, methods=["patch"], url_path="bulk-update")
     def bulk_update(self, request):
-        serializer = BulkUserActionSerializer(data=request.data, many=True)
-        serializer.is_valid(raise_exception=True)
-        updates = []
-        for data in serializer.validated_data:
-            user_id = data.get("id")
-            updates.append(User(id=user_id, **data))
-
-        try:
-            # Use `bulk_update` for efficiency
-            User.objects.bulk_update(
-                updates,
-                fields=[
-                    field
-                    for field in serializer.validated_data[0].keys()
-                    if field != "id"
-                ],
+        ids = request.data.get("ids", [])
+        update_data = request.data.get("data", {})
+        if not ids:
+            return Response(
+                {"error": "No user IDs provided"}, status=status.HTTP_400_BAD_REQUEST
             )
-        except IntegrityError as e:
-            transaction.set_rollback(True)
-            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
-
+        users = User.objects.filter(id__in=ids)
+        count = users.count()
+        if not count:
+            return Response(
+                {"error": "No users found"}, status=status.HTTP_404_NOT_FOUND
+            )
+        allowed_fields = ["role", "state"]
+        update_kwargs = {k: v for k, v in update_data.items() if k in allowed_fields}
+        if update_kwargs:
+            users.update(**update_kwargs)
         return Response(
-            {"message": "Users updated successfully!"}, status=status.HTTP_200_OK
+            {"message": f"Updated {count} users"}, status=status.HTTP_200_OK
         )
 
-    @transaction.atomic
-    @action(detail=False, methods=["delete"])
+    @action(detail=False, methods=["delete"], url_path="bulk-delete")
     def bulk_delete(self, request):
-        user_ids = request.data.get("user_ids", [])
-        if not user_ids:
+        ids = request.data.get("ids", [])
+        if not ids:
             return Response(
                 {"error": "No user IDs provided"}, status=status.HTTP_400_BAD_REQUEST
             )
-
-        try:
-            # Use `bulk_delete` for efficiency
-            User.objects.filter(id__in=user_ids).delete()
-        except IntegrityError as e:
-            transaction.set_rollback(True)
-            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
-
+        users = User.objects.filter(id__in=ids)
+        count = users.count()
+        if not count:
+            return Response(
+                {"error": "No users found"}, status=status.HTTP_404_NOT_FOUND
+            )
+        users.delete()
         return Response(
-            {"message": "Users deleted successfully!"}, status=status.HTTP_200_OK
+            {"message": f"Deleted {count} users"}, status=status.HTTP_200_OK
         )
 
-    @transaction.atomic
-    @action(detail=False, methods=["patch"])
+    @action(detail=False, methods=["patch"], url_path="bulk-activate")
     def bulk_activate(self, request):
-        user_ids = request.data.get("user_ids", [])
-        if not user_ids:
+        ids = request.data.get("ids", [])
+        if not ids:
             return Response(
                 {"error": "No user IDs provided"}, status=status.HTTP_400_BAD_REQUEST
             )
-
-        try:
-            User.objects.filter(id__in=user_ids).update(state="active")
-        except IntegrityError as e:
-            transaction.set_rollback(True)
-            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
-
+        users = User.objects.filter(id__in=ids)
+        count = users.count()
+        if not count:
+            return Response(
+                {"error": "No users found"}, status=status.HTTP_404_NOT_FOUND
+            )
+        users.update(state="active")
         return Response(
-            {"message": "Users activated successfully!"}, status=status.HTTP_200_OK
+            {"message": f"Activated {count} users"}, status=status.HTTP_200_OK
         )
 
-    @transaction.atomic
-    @action(detail=False, methods=["patch"])
+    @action(detail=False, methods=["patch"], url_path="bulk-block")
     def bulk_block(self, request):
-        user_ids = request.data.get("user_ids", [])
-        if not user_ids:
+        ids = request.data.get("ids", [])
+        if not ids:
             return Response(
                 {"error": "No user IDs provided"}, status=status.HTTP_400_BAD_REQUEST
             )
-
-        try:
-            User.objects.filter(id__in=user_ids).update(state="blocked")
-        except IntegrityError as e:
-            transaction.set_rollback(True)
-            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
-
+        users = User.objects.filter(id__in=ids)
+        count = users.count()
+        if not count:
+            return Response(
+                {"error": "No users found"}, status=status.HTTP_404_NOT_FOUND
+            )
+        users.update(state="blocked")
         return Response(
-            {"message": "Users blocked successfully!"}, status=status.HTTP_200_OK
+            {"message": f"Blocked {count} users"}, status=status.HTTP_200_OK
         )
 
-    @action(detail=True, methods=["patch"])
+    @action(detail=True, methods=["patch"], url_path="update-state")
     def update_state(self, request, pk=None):
-        """Update a single user's state (active/blocked). Admin only."""
-        new_state = request.data.get("state")
-        if new_state not in ("active", "blocked"):
-            return Response(
-                {"error": "State must be 'active' or 'blocked'"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        try:
-            user = User.objects.get(pk=pk)
-        except User.DoesNotExist:
-            return Response(
-                {"error": "User not found"}, status=status.HTTP_404_NOT_FOUND
-            )
-
-        user.state = new_state
-        user.save(update_fields=["state"])
-        return Response(
-            {"message": f"User state updated to {new_state}"},
-            status=status.HTTP_200_OK,
-        )
+        user = self.get_object()
+        state = request.data.get("state")
+        role = request.data.get("role")
+        if state:
+            user.state = state
+        if role:
+            user.role = role
+        user.save()
+        serializer = self.get_serializer(user)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 class SiteViewLogViewSet(viewsets.ModelViewSet):
-    queryset = SiteViewLog.objects.all()
+    queryset = SiteViewLog.objects.all().order_by("-timestamp")
     serializer_class = SiteViewLogSerializer
+    renderer_classes = [UserRenderer]
 
     def get_permissions(self):
-        if self.request.method == "GET":
-            self.permission_classes = [IsAuthenticated, IsAdminUser]
-        return super().get_permissions()
+        if self.action == "create":
+            return [AllowAny()]
+        return [IsAuthenticated(), IsAdminUser()]
 
     def create(self, request, *args, **kwargs):
+        data = request.data
         user = request.user if request.user.is_authenticated else None
-        user_agent = request.data.get("user_agent")
-        location = request.data.get("location", {})
-        city = location.get("city")
-        country = location.get("country")
-
-        site_view_log = SiteViewLog.objects.create(
+        log = SiteViewLog.objects.create(
             user=user,
-            user_agent=user_agent,
-            city=city,
-            country=country,
+            country=data.get("country", "Unknown"),
+            city=data.get("city", "Unknown"),
+            user_agent=data.get("user_agent", "Unknown"),
         )
-        return Response({"status": "logged"}, status=201)
+        return Response(
+            {"message": "Log created", "id": log.id}, status=status.HTTP_201_CREATED
+        )
 
 
-class SiteViewLogAnalyticsView(View):
+class SiteViewLogAnalyticsView(APIView):
     def get_permissions(self):
-        if self.request.method == "GET":
-            self.permission_classes = [IsAuthenticated, IsAdminUser]
-        return super().get_permissions()
+        return [IsAuthenticated(), IsAdminUser()]
 
     def get(self, request):
-        filter_by = request.GET.get("filter_by", "day")
-        group_by = request.GET.get("group_by", None)
-        country = request.GET.get("country", None)
-        city = request.GET.get("city", None)
-        user_agent = request.GET.get("user_agent", None)
-        start_date = request.GET.get("start_date", None)
-        end_date = request.GET.get("end_date", None)
-        year = request.GET.get("year", None)
-        month = request.GET.get("month", None)
-        day = request.GET.get("day", None)
+        period = request.query_params.get("period", "daily")
+        days = int(request.query_params.get("days", 30))
 
-        queryset = SiteViewLog.objects.all()
+        end_date = timezone.now()
+        start_date = end_date - timezone.timedelta(days=days)
 
-        if country:
-            queryset = queryset.filter(country=country)
-        if city:
-            queryset = queryset.filter(city=city)
-        if user_agent:
-            queryset = queryset.filter(user_agent=user_agent)
+        queryset = SiteViewLog.objects.filter(timestamp__gte=start_date)
 
-        if start_date and end_date:
-            queryset = queryset.filter(timestamp__range=[start_date, end_date])
-        elif year and month and day:
-            date = datetime(int(year), int(month), int(day))
-            queryset = queryset.filter(timestamp__date=date)
-        elif year and month:
-            queryset = queryset.filter(timestamp__year=year, timestamp__month=month)
-        elif year:
-            queryset = queryset.filter(timestamp__year=year)
-
-        if filter_by == "day":
-            trunc_func = TruncDay
-        elif filter_by == "week":
-            trunc_func = TruncWeek
-        elif filter_by == "month":
-            trunc_func = TruncMonth
-        elif filter_by == "year":
-            trunc_func = TruncYear
+        if period == "daily":
+            trunc_fn = TruncDay
+        elif period == "weekly":
+            trunc_fn = TruncWeek
+        elif period == "monthly":
+            trunc_fn = TruncMonth
+        elif period == "yearly":
+            trunc_fn = TruncYear
         else:
-            return JsonResponse({"error": "Invalid filter_by parameter"}, status=400)
+            trunc_fn = TruncDay
 
-        queryset = (
-            queryset.annotate(period=trunc_func("timestamp"))
+        # Views over time
+        views_over_time = (
+            queryset.annotate(period=trunc_fn("timestamp"))
             .values("period")
-            .annotate(total_views=Count("id"))
+            .annotate(count=Count("id"))
             .order_by("period")
         )
 
-        results = {}
-        overall_views = queryset.aggregate(overall_views=Count("id"))["overall_views"]
+        # Unique visitors (by user_agent)
+        unique_visitors = (
+            queryset.annotate(period=trunc_fn("timestamp"))
+            .values("period")
+            .annotate(count=Count("user_agent", distinct=True))
+            .order_by("period")
+        )
 
-        if group_by:
-            group_fields = {
-                "country": "country",
-                "city": "city",
-                "user_agent": "user_agent",
+        # Top countries
+        top_countries = (
+            queryset.values("country")
+            .annotate(count=Count("id"))
+            .order_by("-count")[:10]
+        )
+
+        # Top cities
+        top_cities = (
+            queryset.values("city").annotate(count=Count("id")).order_by("-count")[:10]
+        )
+
+        # Summary stats
+        total_views = queryset.count()
+        total_unique = queryset.values("user_agent").distinct().count()
+
+        # Views today
+        today_start = timezone.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        views_today = queryset.filter(timestamp__gte=today_start).count()
+
+        # Growth (compare last 7 days vs previous 7 days)
+        seven_days_ago = end_date - timezone.timedelta(days=7)
+        fourteen_days_ago = end_date - timezone.timedelta(days=14)
+        recent_views = SiteViewLog.objects.filter(timestamp__gte=seven_days_ago).count()
+        previous_views = SiteViewLog.objects.filter(
+            timestamp__gte=fourteen_days_ago, timestamp__lt=seven_days_ago
+        ).count()
+        growth = (
+            round(((recent_views - previous_views) / previous_views) * 100, 1)
+            if previous_views > 0
+            else 0
+        )
+
+        return Response(
+            {
+                "views_over_time": list(views_over_time),
+                "unique_visitors": list(unique_visitors),
+                "top_countries": list(top_countries),
+                "top_cities": list(top_cities),
+                "summary": {
+                    "total_views": total_views,
+                    "total_unique_visitors": total_unique,
+                    "views_today": views_today,
+                    "growth_percentage": growth,
+                },
             }
-            group_field = group_fields.get(group_by)
-            if not group_field:
-                return JsonResponse({"error": "Invalid group_by parameter"}, status=400)
-
-            grouped_queryset = (
-                queryset.values(group_field, "period")
-                .annotate(total_views=Count("id"))
-                .order_by(group_field, "period")
-            )
-            for entry in grouped_queryset:
-                group_value = entry[group_field]
-                period = (
-                    entry["period"].strftime("%Y-%m-%d")
-                    if filter_by == "day"
-                    else (
-                        entry["period"].strftime("%Y-%W")
-                        if filter_by == "week"
-                        else (
-                            entry["period"].strftime("%Y-%m")
-                            if filter_by == "month"
-                            else entry["period"].strftime("%Y")
-                        )
-                    )
-                )
-                if group_value not in results:
-                    results[group_value] = {}
-                results[group_value][period] = entry["total_views"]
-
-        else:
-            for entry in queryset:
-                period = (
-                    entry["period"].strftime("%Y-%m-%d")
-                    if filter_by == "day"
-                    else (
-                        entry["period"].strftime("%Y-%W")
-                        if filter_by == "week"
-                        else (
-                            entry["period"].strftime("%Y-%m")
-                            if filter_by == "month"
-                            else entry["period"].strftime("%Y")
-                        )
-                    )
-                )
-                results[period] = entry["total_views"]
-
-        response_data = {"overall_views": overall_views, "details": results}
-
-        return JsonResponse(response_data, safe=False)
+        )
 
 
 class SearchView(viewsets.ModelViewSet):
     queryset = SearchHistory.objects.all().order_by("-search_date")
     serializer_class = SearchHistorySerializer
     renderer_classes = [UserRenderer]
-    permission_classes = [AllowAny]
     pagination_class = CustomPagination
+
+    def get_permissions(self):
+        if self.action in ["create", "list", "popular_keywords"]:
+            return [AllowAny()]
+        # DELETE, UPDATE, etc. require admin
+        return [IsAuthenticated(), IsAdminUser()]
+
+    # Only allow GET, POST, HEAD, OPTIONS for non-admin; admin can do anything via permissions
+    http_method_names = ["get", "post", "delete", "head", "options"]
 
     def create(self, request, *args, **kwargs):
         keyword = request.data.get("keyword")
@@ -778,7 +757,7 @@ class SearchView(viewsets.ModelViewSet):
 
 
 class DeliveryAddressView(viewsets.ModelViewSet):
-    queryset = DeliveryAddress.objects.filter(is_deleted=False).order_by("-id")
+    queryset = DeliveryAddress.objects.all().order_by("-id")
     serializer_class = DeliveryAddressSerializer
     renderer_classes = [UserRenderer]
     permission_classes = [IsAuthenticated]
@@ -786,45 +765,47 @@ class DeliveryAddressView(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        queryset = super().get_queryset()
-        queryset = queryset.filter(user=user)
-        return queryset
+        return DeliveryAddress.objects.filter(user=user, is_deleted=False).order_by(
+            "-id"
+        )
 
     def create(self, request, *args, **kwargs):
-        user = request.user
         data = request.data.copy()
-        data["user"] = user.id
-
-        if data.get("default"):
-            DeliveryAddress.objects.filter(user=user, default=True).update(
-                default=False
-            )
-
+        data["user"] = request.user.id
         serializer = self.get_serializer(data=data)
         serializer.is_valid(raise_exception=True)
-        serializer.save()
-        return Response("Address Created", status=status.HTTP_201_CREATED)
+        try:
+            serializer.save()
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     def update(self, request, *args, **kwargs):
-        user = request.user
         instance = self.get_object()
-        data = request.data.copy()
-
-        if data.get("default"):
-            DeliveryAddress.objects.filter(user=user, default=True).update(
-                default=False
+        if instance.user != request.user:
+            return Response(
+                {"error": "You can only update your own addresses."},
+                status=status.HTTP_403_FORBIDDEN,
             )
-
+        data = request.data.copy()
         serializer = self.get_serializer(instance, data=data, partial=True)
         serializer.is_valid(raise_exception=True)
-        serializer.save()
-        return Response("Address Updated", status=status.HTTP_200_OK)
+        try:
+            serializer.save()
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
+        if instance.user != request.user:
+            return Response(
+                {"error": "You can only delete your own addresses."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
         instance.is_deleted = True
         instance.save()
-        return Response("Address Deleted", status=status.HTTP_204_NO_CONTENT)
+        return Response({"message": "Address deleted"}, status=status.HTTP_200_OK)
 
     @action(detail=False, methods=["get"])
     def get_default(self, request):

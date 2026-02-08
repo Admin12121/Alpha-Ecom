@@ -1161,6 +1161,27 @@ export const userAuthapi = createApi({
       ],
     }),
 
+    updateBill: builder.mutation({
+      query: ({ id, data, token }) => ({
+        url: `api/booking/bookings/${id}/update_bill/`,
+        method: "PATCH",
+        body: data,
+        headers: createHeaders(token),
+      }),
+      invalidatesTags: (_result: any, _error: any, arg: any) => [
+        "Bookings",
+        { type: "BookingDetail" as const, id: arg.id },
+      ],
+    }),
+
+    sendBillEmail: builder.mutation({
+      query: ({ id, token }) => ({
+        url: `api/booking/bookings/${id}/send_bill_email/`,
+        method: "POST",
+        headers: createHeaders(token),
+      }),
+    }),
+
     getBookingStats: builder.query({
       query: ({ token }) => ({
         url: "api/booking/bookings/stats/",
@@ -1279,6 +1300,8 @@ export const {
   useUpdateBookingStatusMutation,
   useUpdateMeasurementsMutation,
   useDeleteBookingMutation,
+  useUpdateBillMutation,
+  useSendBillEmailMutation,
   useGetBookingStatsQuery,
   useCustomerLookupQuery,
   useGenerateBillNumberQuery,

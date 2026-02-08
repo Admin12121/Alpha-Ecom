@@ -10,7 +10,7 @@ from django.utils import timezone
 from rest_framework import filters, serializers, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.pagination import PageNumberPagination
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
 
 from account.models import DeliveryAddress
@@ -64,7 +64,7 @@ def get_invoice_details(sale, user_email):
 
 
 class SalesViewSet(viewsets.ModelViewSet):
-    """Sales ViewSet with delete restricted to cancelled/unpaid orders only."""
+    """Sales ViewSet with admin-only update/delete."""
 
     queryset = Sales.objects.all().order_by("-id")
     renderer_classes = [UserRenderer]
@@ -82,6 +82,15 @@ class SalesViewSet(viewsets.ModelViewSet):
         if self.request.method == "POST":
             return SalesPostDataSerializer
         return SaleQuertSetSerializer
+
+    def get_permissions(self):
+        if self.action in ["update", "partial_update"]:
+            # Only admin can update orders (change status, delivery date, etc.)
+            return [IsAuthenticated(), IsAdminUser()]
+        if self.action == "destroy":
+            # Only admin can delete orders
+            return [IsAuthenticated(), IsAdminUser()]
+        return super().get_permissions()
 
     @encrypt_response
     def retrieve(self, request, *args, **kwargs):
@@ -110,6 +119,19 @@ class SalesViewSet(viewsets.ModelViewSet):
         data = request.data
         invoice_data = data.get("products", [])
         user = request.user
+
+        # --- Idempotency check: reject duplicate transactionuid ---
+        transactionuid = data.get("transactionuid")
+        if not transactionuid:
+            return Response(
+                {"error": "Transaction UID is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if Sales.objects.filter(transactionuid=transactionuid).exists():
+            return Response(
+                {"error": "This order has already been placed."},
+                status=status.HTTP_409_CONFLICT,
+            )
 
         # --- Validate shipping address before entering atomic block ---
         try:
@@ -213,16 +235,19 @@ class SalesViewSet(viewsets.ModelViewSet):
         new_date = updated_instance.expected_delivery_date
         new_status = updated_instance.status
 
+        # Send delivery delay email using proper template
         if old_date and new_date and new_date > old_date:
             try:
+                delay_reason = updated_instance.delivery_delay_reason or ""
                 subject = f"Update on your order #{updated_instance.transactionuid}"
-                body = f"""
-                <p>Dear {updated_instance.costumer_name.first_name},</p>
-                <p>We apologize, but your order delivery has been delayed due to unforeseen circumstances.</p>
-                <p>The new expected delivery date is <strong>{new_date}</strong>.</p>
-                <p>We are sorry for the inconvenience.</p>
-                <p>Best regards,<br>Alpha Suits Team</p>
-                """
+                context = {
+                    "first_name": updated_instance.costumer_name.first_name
+                    or "Valued Customer",
+                    "transactionuid": updated_instance.transactionuid,
+                    "new_delivery_date": new_date.strftime("%B %d, %Y"),
+                    "delay_reason": delay_reason,
+                }
+                body = render_to_string("delivery_delay.html", context)
                 send_email(subject, updated_instance.costumer_name.email, body)
             except Exception as e:
                 logger.error(f"Failed to send delivery delay email: {e}")
@@ -243,7 +268,9 @@ class SalesViewSet(viewsets.ModelViewSet):
     def _send_review_invitation_email(self, sale):
         """Send an email inviting the customer to review their purchased products."""
         user = sale.costumer_name
-        frontend_url = getattr(settings, "FRONTEND_URL", "").rstrip("/")
+        frontend_url = getattr(
+            settings, "FRONTEND_URL", "https://alphasuits.com.np"
+        ).rstrip("/")
 
         # Get all products from this order
         sale_products = sale.products.select_related("product").all()
@@ -321,15 +348,27 @@ class SalesViewSet(viewsets.ModelViewSet):
 
 
 class RedeemCodeViewSet(viewsets.ModelViewSet):
+    """
+    Redeem codes:
+    - GET/LIST: Any authenticated user can view (for code verification on checkout)
+    - POST/PATCH/PUT/DELETE: Admin only (create, update, delete codes)
+    """
+
     queryset = Redeem_Code.objects.all().order_by("-id")
     serializer_class = RedeemSerializer
     renderer_classes = [UserRenderer]
-    permission_classes = [IsAuthenticated]
     pagination_class = StandardResultsSetPagination
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ["code", "name"]
     search_fields = ["code", "name"]
     ordering_fields = ["valid", "used"]
+
+    def get_permissions(self):
+        if self.action in ["list", "retrieve", "verify_code"]:
+            # Any authenticated user can view/verify redeem codes
+            return [IsAuthenticated()]
+        # Create, update, delete require admin
+        return [IsAuthenticated(), IsAdminUser()]
 
     def get_queryset(self):
         code = self.request.query_params.get("code")

@@ -1,5 +1,6 @@
 from collections import Counter
 
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import transaction
 from django.db.models import Count, Max, Min, Q, Sum
 from django.shortcuts import get_object_or_404
@@ -123,7 +124,7 @@ class ProductViewSet(viewsets.ModelViewSet):
         .order_by("-id")
     )
     serializer_class = ProductSerializer
-    permission_classes = [CustomReadOnly]
+    permission_classes = [IsAdminOrReadOnly]
     parser_classes = [MultiPartParser, FormParser]
     pagination_class = StandardResultsSetPagination
 
@@ -805,13 +806,46 @@ class ProductVariantViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(instance, data=data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save()
-        notify_users = NotifyUser.objects.filter(variant=instance.id)
-        emails = [notify_user.email for notify_user in notify_users]
-        if emails:
-            subject = "You asked, we restocked ✨"
-            body = render_to_string("restockitem.html", {"product": "product"})
-            send_email(subject, emails, body)
+
+        # Send restock notification emails with actual product data
+        notify_users = NotifyUser.objects.filter(variant=instance.id).select_related(
+            "product"
+        )
+        if notify_users.exists():
+            product = instance.product
+            product_image = None
+            if product and product.images.exists():
+                first_img = product.images.first()
+                if first_img and first_img.image:
+                    product_image = request.build_absolute_uri(first_img.image.url)
+
+            from django.conf import settings
+
+            frontend_url = getattr(
+                settings, "FRONTEND_URL", "https://alphasuits.com.np"
+            ).rstrip("/")
+            product_url = (
+                f"{frontend_url}/collections/{product.productslug}"
+                if product
+                else frontend_url
+            )
+
+            context = {
+                "product_name": product.product_name if product else "Your item",
+                "product_image": product_image,
+                "product_price": str(instance.price) if instance.price else None,
+                "variant_name": instance.size
+                or (instance.color_name if hasattr(instance, "color_name") else None),
+                "product_url": product_url,
+            }
+
+            emails = [nu.email for nu in notify_users if nu.email]
+            if emails:
+                subject = "You asked, we restocked ✨"
+                body = render_to_string("restockitem.html", context)
+                send_email(subject, emails, body)
             notify_users.delete()
+
         return Response({"message": "Variant Updated"}, status=status.HTTP_200_OK)
 
     def destroy(self, *args, **kwargs):
@@ -861,11 +895,20 @@ class ReviewPostViewSet(viewsets.ModelViewSet):
         )
 
     def create(self, request, *args, **kwargs):
-        data = request.data.copy()  # Make a mutable copy of QueryDict
         user = request.user
-        data["user"] = user.id
 
-        product_slug = data.get("product_slug")
+        # Build a plain dict from request data — avoid QueryDict.copy()
+        # which deep-copies and chokes on unpicklable TemporaryUploadedFile handles
+        data = {
+            "user": user.id,
+            "rating": request.data.get("rating"),
+            "title": request.data.get("title"),
+            "content": request.data.get("content"),
+            "recommended": request.data.get("recommended"),
+            "delivery": request.data.get("delivery"),
+        }
+
+        product_slug = request.data.get("product_slug")
         try:
             product = Product.objects.get(productslug=product_slug)
         except Product.DoesNotExist:
@@ -874,7 +917,6 @@ class ReviewPostViewSet(viewsets.ModelViewSet):
             )
         data["product"] = product.id
 
-        # --- Purchase verification: only buyers can review ---
         eligible_purchases = self._get_eligible_purchase_count(user, product)
         if eligible_purchases == 0:
             return Response(
@@ -882,7 +924,6 @@ class ReviewPostViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        # --- One review per purchase transaction ---
         existing_reviews = Review.objects.filter(user=user, product=product).count()
         if existing_reviews >= eligible_purchases:
             return Response(
@@ -892,23 +933,29 @@ class ReviewPostViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # Remove product_slug from data as it's not a model field
-        data.pop("product_slug", None)
-
         serializer = self.get_serializer(data=data)
-        if serializer.is_valid(raise_exception=True):
+        serializer.is_valid(raise_exception=True)
+
+        try:
             with transaction.atomic():
-                self.perform_create(serializer)
+                review = serializer.save()
                 image = request.FILES.get("image")
                 if image:
-                    try:
-                        image_data = {"review": serializer.data["id"], "image": image}
-                        image_serializer = ReviewImageWriteSerializer(data=image_data)
-                        image_serializer.is_valid(raise_exception=True)
-                        image_serializer.save()
-                    except Exception as e:
-                        transaction.set_rollback(True)
-                        raise e
+                    if hasattr(image, "seek"):
+                        image.seek(0)
+                    image_data = {"review": review.id, "image": image}
+                    image_serializer = ReviewImageWriteSerializer(data=image_data)
+                    image_serializer.is_valid(raise_exception=True)
+                    image_serializer.save()
+        except ValidationError:
+            raise  # Let DRF handle its own ValidationError normally
+        except DjangoValidationError as e:
+            error_msg = e.message if hasattr(e, "message") else str(e)
+            return Response(
+                {"error": error_msg},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         return Response(
             {"msg": "Review Posted Successfully"}, status=status.HTTP_201_CREATED
         )
@@ -950,11 +997,12 @@ class ReviewPostViewSet(viewsets.ModelViewSet):
                 {"detail": "You are not authorized to delete this review data."},
                 status=status.HTTP_403_FORBIDDEN,
             )
-        subject = ("Your review has been deleted",)
+        # Fixed: was a tuple bug (trailing comma made subject a tuple)
+        subject = "Your review has been removed"
         body = render_to_string(
             "reviewrejected.html", {"remark": request.data.get("remark")}
         )
-        send_email(subject, [instance.user.email], body)
+        send_email(subject, instance.user.email, body)
         self.perform_destroy(instance)
         return Response(
             {"msg": "Review Deleted Successfully"}, status=status.HTTP_200_OK
@@ -1000,49 +1048,56 @@ class ReviewPostViewSet(viewsets.ModelViewSet):
 class ReviewViewSet(viewsets.ModelViewSet):
     queryset = Review.objects.select_related("product", "user").all().order_by("-id")
     serializer_class = ReviewSerializer
-    permission_classes = [permissions.AllowAny]
     pagination_class = StandardResultsSetPagination
 
-    def get_queryset(self, *args, **kwargs):
+    def get_permissions(self):
+        if self.action in ["list", "retrieve"]:
+            return [permissions.AllowAny()]
+        if self.action in ["get_user_reviews", "pending_reviews"]:
+            return [IsAuthenticated()]
+        # Admin-only for everything else (update, destroy, etc.)
+        return [IsAuthenticated()]
+
+    def get_queryset(self):
         queryset = super().get_queryset()
         product_slug = self.kwargs.get("product_slug")
         star = self.request.query_params.get("star")
-        filter = self.request.query_params.get("filter")
+        review_filter = self.request.query_params.get("filter")
         search = self.request.query_params.get("search")
+
+        # When accessed via /reviews/{slug}/data/ — filter by product
         if product_slug:
             queryset = queryset.filter(product__productslug=product_slug)
-        if self.request.user.is_authenticated:
-            request_user = self.request.user
-            if (
-                request_user.role != "Admin"
-                and request_user.role != "Staff"
-                and not request_user.is_superuser
-                and not product_slug
+        else:
+            # Admin-only listing (no product_slug means admin review list)
+            user = self.request.user
+            if not (
+                user.is_authenticated
+                and (user.role in ("Admin", "Staff") or user.is_superuser)
             ):
                 from rest_framework.exceptions import PermissionDenied
 
-                raise PermissionDenied(
-                    {"detail": "You are not authorized to view reviews"}
-                )
+                raise PermissionDenied("You are not authorized to view all reviews.")
+
         if star and star != "0":
-            queryset = queryset.filter(rating=star)
+            queryset = queryset.filter(rating=int(star))
+
         if search:
             queryset = queryset.filter(
                 Q(product__product_name__icontains=search)
                 | Q(user__username__icontains=search)
                 | Q(user__first_name__icontains=search)
             )
-        if filter == "recent":
+
+        if review_filter == "recent":
             queryset = queryset.order_by("-created_at")
-        elif filter == "rating":
+        elif review_filter == "rating":
             queryset = queryset.order_by("-rating")
-        elif filter == "relevant":
-            # Implement your logic for relevance sorting if needed
-            pass
+
         return queryset
 
     def list(self, request, *args, **kwargs):
-        queryset = self.get_queryset().exclude(verified=False)
+        queryset = self.get_queryset().filter(verified=True)
         page = self.paginate_queryset(queryset)
         if page is not None:
             serializer = self.get_serializer(
@@ -1151,7 +1206,15 @@ class ReviewViewSet(viewsets.ModelViewSet):
 class NotifyUserViewSet(viewsets.ModelViewSet):
     queryset = NotifyUser.objects.select_related("product", "user").all()
     serializer_class = NotifyUserSerializer
-    permission_classes = [AllowAny]
+
+    # Block PUT, PATCH, DELETE for everyone except admin
+    http_method_names = ["get", "post", "head", "options"]
+
+    def get_permissions(self):
+        if self.action in ["create", "list", "retrieve"]:
+            return [AllowAny()]
+        # Admin only for everything else
+        return [IsAuthenticated()]
 
     def get_queryset(self):
         queryset = super().get_queryset()
@@ -1167,14 +1230,31 @@ class NotifyUserViewSet(viewsets.ModelViewSet):
 
     def create(self, request, *args, **kwargs):
         email = request.data.get("email")
-        product = get_object_or_404(Product, id=request.data.get("product"))
-        variant = request.data.get("variant")
+        product_id = request.data.get("product")
+        variant_id = request.data.get("variant")
+
+        if not email or not product_id:
+            return Response(
+                {"error": "Email and product are required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        product = get_object_or_404(Product, id=product_id)
         user = request.user if request.user.is_authenticated else None
 
+        # Prevent duplicate: 1 email per product+variant combination
+        existing = NotifyUser.objects.filter(
+            email=email, product=product, variant_id=variant_id
+        ).exists()
+        if existing:
+            return Response(
+                {"error": "You are already on the notification list for this item."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         notify_user = NotifyUser.objects.create(
-            product=product, variant=variant, user=user, email=email
+            product=product, variant_id=variant_id, user=user, email=email
         )
-        # self.create_notifications(user, product, email)
         serializer = self.get_serializer(notify_user)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
@@ -1183,19 +1263,24 @@ class NotifyUserViewSet(viewsets.ModelViewSet):
         variant = request.query_params.get("variant")
         user = request.user if request.user.is_authenticated else None
 
+        # If checking for a specific product+variant, return whether user already requested
         if product_id and variant:
             if user:
-                queryset = get_object_or_404(
-                    self.queryset, product_id=product_id, variant=variant, user=user
-                )
-                return Response({"requested": True})
+                exists = NotifyUser.objects.filter(
+                    product_id=product_id, variant=variant, user=user
+                ).exists()
+                return Response({"requested": exists})
             else:
-                return Response(
-                    {"detail": "Authentication required."},
-                    status=status.HTTP_401_UNAUTHORIZED,
-                )
+                return Response({"requested": False})
 
-        queryset = self.queryset
+        # Full list: admin only
+        if not (user and (user.is_superuser or user.role in ("Admin", "Staff"))):
+            return Response(
+                {"detail": "Admin access required for full listing."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        queryset = self.get_queryset()
         page = self.paginate_queryset(queryset)
         if page is not None:
             serializer = self.get_serializer(page, many=True)
@@ -1206,13 +1291,12 @@ class NotifyUserViewSet(viewsets.ModelViewSet):
 
 
 class AddToCartViewSet(viewsets.ModelViewSet):
-    queryset = Cart.objects.all()
+    queryset = Cart.objects.select_related("product", "variant", "user").all()
     serializer_class = AddtoCartSerializer
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        user = get_object_or_404(User, email=self.request.user)
-        return self.queryset.filter(user=user)
+        return self.queryset.filter(user=self.request.user)
 
     def create(self, request, *args, **kwargs):
         items = request.data.get("items", [])
@@ -1289,8 +1373,13 @@ class AddToCartViewSet(viewsets.ModelViewSet):
 
 
 class StocksView(APIView):
-    permission_classes = [IsAdminOrReadOnly]
+    permission_classes = [IsAuthenticated]
     pagination_class = StandardResultsSetPagination
+
+    def check_permissions(self, request):
+        super().check_permissions(request)
+        if not request.user.is_staff and not request.user.is_superuser:
+            self.permission_denied(request, message="Admin access required.")
 
     def get(self, request, *args, **kwargs):
         low_stock_products = Product.objects.filter(

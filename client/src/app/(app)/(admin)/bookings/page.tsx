@@ -24,6 +24,7 @@ import {
   X,
   Plus,
   CalendarIcon,
+  Receipt,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -95,6 +96,7 @@ import {
   useCustomerLookupQuery,
   useCreateBookingMutation,
 } from "@/lib/store/Service/api";
+import BillDialog from "./_components/bill-dialog";
 
 const statusColors: Record<string, string> = {
   pending:
@@ -154,6 +156,7 @@ interface Booking {
   customer_notes?: string;
   status: string;
   bill_number?: string;
+  bill_data?: Record<string, any>;
   delivery_date?: string;
   admin_message?: string;
   coat_measurements?: Record<string, Record<string, string>>;
@@ -272,6 +275,7 @@ export default function AdminBookingsPage() {
   );
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [deleteBookingId, setDeleteBookingId] = useState<number | null>(null);
+  const [billDialogOpen, setBillDialogOpen] = useState(false);
   const [lookupQuery, setLookupQuery] = useState("");
   const [isSaving, setIsSaving] = useState(false);
 
@@ -1049,6 +1053,15 @@ export default function AdminBookingsPage() {
                           >
                             Cancel
                           </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => setBillDialogOpen(true)}
+                            className="flex-1 gap-1.5"
+                          >
+                            <Receipt className="w-4 h-4" />
+                            Bill
+                          </Button>
                           <Button type="submit" className="flex-1">
                             Save Changes
                           </Button>
@@ -1062,6 +1075,15 @@ export default function AdminBookingsPage() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Bill Dialog */}
+      {selectedBooking && (
+        <BillDialog
+          booking={selectedBooking}
+          open={billDialogOpen}
+          onOpenChange={setBillDialogOpen}
+        />
+      )}
 
       {/* Create Booking Dialog */}
       <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>

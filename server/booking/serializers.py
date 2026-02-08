@@ -27,6 +27,7 @@ class BookingListSerializer(serializers.ModelSerializer):
     """Lightweight serializer for list view"""
 
     has_measurements = serializers.SerializerMethodField()
+    has_bill = serializers.SerializerMethodField()
 
     class Meta:
         model = Booking
@@ -43,11 +44,15 @@ class BookingListSerializer(serializers.ModelSerializer):
             "bill_number",
             "delivery_date",
             "has_measurements",
+            "has_bill",
             "created_at",
         ]
 
     def get_has_measurements(self, obj):
         return obj.has_measurements()
+
+    def get_has_bill(self, obj):
+        return bool(obj.bill_data)
 
 
 class BookingDetailSerializer(serializers.ModelSerializer):
@@ -73,6 +78,8 @@ class BookingDetailSerializer(serializers.ModelSerializer):
             "bill_number",
             "delivery_date",
             "admin_message",
+            # Bill data
+            "bill_data",
             # Coat measurements
             "coat_measurements",
             "coat_bill_number",
@@ -118,6 +125,27 @@ class BookingMeasurementUpdateSerializer(serializers.ModelSerializer):
             "shirt_date",
             "measurement_completed_at",
         ]
+
+
+class BillUpdateSerializer(serializers.ModelSerializer):
+    """Serializer for admin to create/update bill data"""
+
+    class Meta:
+        model = Booking
+        fields = ["bill_data"]
+
+    def validate_bill_data(self, value):
+        if not isinstance(value, dict):
+            raise serializers.ValidationError("bill_data must be a JSON object.")
+        # Validate required keys
+        required_keys = ["items"]
+        for key in required_keys:
+            if key not in value:
+                raise serializers.ValidationError(f"bill_data must contain '{key}'.")
+        # Validate items is a list
+        if not isinstance(value.get("items"), list):
+            raise serializers.ValidationError("'items' must be a list.")
+        return value
 
 
 class CustomerLookupSerializer(serializers.Serializer):

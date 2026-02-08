@@ -254,7 +254,7 @@ export default function BookNowPage() {
               <div className="absolute inset-0 w-full h-full">
                 <iframe
                   className="absolute inset-0 w-full h-full rounded-tl-sm rounded-tr-sm"
-                  src="https://www.youtube.com/embed/l3Viglg673M?autoplay=1&mute=1&loop=1&controls=0&playlist=l3Viglg673M&rel=0&modestbranding=1"
+                  src="https://www.youtube.com/embed/l3Viglg673M?autoplay=1&mute=0&loop=1&controls=1&rel=0&modestbranding=1"
                   title="Promotional video"
                   allow="autoplay; encrypted-media; picture-in-picture"
                   allowFullScreen

@@ -19,16 +19,18 @@ const Voucher = ({
   const discount = data.variantDetails.discount;
 
   const finalPrice = useMemo(() => {
-    return Number(
-      (actualprice - actualprice * (discount / 100)).toFixed(2)
-    );
+    return Number((actualprice - actualprice * (discount / 100)).toFixed(2));
   }, [actualprice, discount]);
   const truncateText = useCallback(
     (text: string, maxLength: number): string => {
       return text.length > maxLength ? `${text.slice(0, maxLength)}...` : text;
     },
-    []
+    [],
   );
+  const baseName = data.images.image.split("/").pop()?.split(".")[0] ?? "";
+  const cleanBase = baseName.replace(/_[A-Za-z0-9]{7,}$/, "");
+  const isFullCover = cleanBase.endsWith("not");
+  const imageClassName = isFullCover ? "w-full h-full object-cover" : "";
   return (
     <Card className="p-1 w-full rounded-lg shadow-none bg-transparent h-[90px] bg-white dark:bg-neutral-900">
       <CardBody className="flex justify-between flex-row items-center h-full relative">
@@ -39,7 +41,10 @@ const Voucher = ({
               height={100}
               src={data.images.image}
               width={80}
-              className="w-[80px] h-full object-contain"
+              className={cn(
+                "w-[80px] h-full object-contain rounded-sm",
+                imageClassName,
+              )}
             />
           </span>
           <span className="flex items-start flex-col gap-2 justify-between h-full">
@@ -71,7 +76,7 @@ const Voucher = ({
               <p
                 className={cn(
                   "text-sm",
-                  discount > 0 && "text-neutral-500 line-through"
+                  discount > 0 && "text-neutral-500 line-through",
                 )}
               >
                 रु {actualprice * data.pcs}

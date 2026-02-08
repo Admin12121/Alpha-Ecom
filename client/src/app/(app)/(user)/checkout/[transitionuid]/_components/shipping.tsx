@@ -34,7 +34,13 @@ const AddressSchema = z.object({
 
 type AddressFormValues = z.infer<typeof AddressSchema>;
 
-const Shipping = ({ accessToken, refetch }: { accessToken?: string, refetch:any }) => {
+const Shipping = ({
+  accessToken,
+  refetch,
+}: {
+  accessToken?: string;
+  refetch: any;
+}) => {
   const [addShipping, { isLoading }] = useShippingMutation();
 
   const form = useForm<AddressFormValues>({
@@ -53,7 +59,6 @@ const Shipping = ({ accessToken, refetch }: { accessToken?: string, refetch:any 
     const toastId = toast.loading("Adding Shipping Address...", {
       position: "top-center",
     });
-    await delay(500);
     const res = await addShipping({ actualData, token: accessToken });
     if (res.data) {
       toast.success("New Shipping Address Added", {
@@ -64,7 +69,7 @@ const Shipping = ({ accessToken, refetch }: { accessToken?: string, refetch:any 
         },
       });
       form.reset();
-      refetch()
+      refetch();
     } else {
       toast.error("Something went wrong!", {
         id: toastId,
@@ -93,7 +98,11 @@ const Shipping = ({ accessToken, refetch }: { accessToken?: string, refetch:any 
                 <FormItem>
                   <FormLabel>Address</FormLabel>
                   <FormControl>
-                    <Input className="dark:bg-neutral-800" placeholder="Enter Address" {...field} />
+                    <Input
+                      className="dark:bg-neutral-800"
+                      placeholder="Enter Address"
+                      {...field}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -106,7 +115,11 @@ const Shipping = ({ accessToken, refetch }: { accessToken?: string, refetch:any 
                 <FormItem>
                   <FormLabel>Country</FormLabel>
                   <FormControl>
-                    <Input className="dark:bg-neutral-800" placeholder="Enter Country" {...field} />
+                    <Input
+                      className="dark:bg-neutral-800"
+                      placeholder="Enter Country"
+                      {...field}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -120,7 +133,11 @@ const Shipping = ({ accessToken, refetch }: { accessToken?: string, refetch:any 
                   <FormItem>
                     <FormLabel>City</FormLabel>
                     <FormControl>
-                      <Input className="dark:bg-neutral-800" placeholder="Enter City" {...field} />
+                      <Input
+                        className="dark:bg-neutral-800"
+                        placeholder="Enter City"
+                        {...field}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -133,7 +150,11 @@ const Shipping = ({ accessToken, refetch }: { accessToken?: string, refetch:any 
                   <FormItem>
                     <FormLabel>Zip code</FormLabel>
                     <FormControl>
-                      <Input className="dark:bg-neutral-800" placeholder="Enter Zip code" {...field} />
+                      <Input
+                        className="dark:bg-neutral-800"
+                        placeholder="Enter Zip code"
+                        {...field}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -158,7 +179,12 @@ const Shipping = ({ accessToken, refetch }: { accessToken?: string, refetch:any 
                 </FormItem>
               )}
             />
-            <Button variant="custom" type="submit" loading={isLoading}>
+            <Button
+              variant="custom"
+              type="submit"
+              loading={isLoading}
+              disabled={isLoading}
+            >
               Save
             </Button>
           </form>

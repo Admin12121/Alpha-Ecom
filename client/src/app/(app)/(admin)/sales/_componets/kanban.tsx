@@ -1,6 +1,7 @@
 "use client";
 import React, {
   useReducer,
+  useRef,
   useState,
   DragEvent,
   useCallback,
@@ -317,6 +318,7 @@ const Column = ({
   const { accessToken } = useAuthUser();
   const [updateSale] = useUpdateSaleMutation();
   const [deleteSale] = useDeleteSaleMutation();
+  const isActionInProgressRef = useRef(false);
 
   const [active, setActive] = useState(false);
 
@@ -442,6 +444,9 @@ const Column = ({
     currentStatus: number,
     type: boolean = false,
   ) => {
+    if (isActionInProgressRef.current) return;
+    isActionInProgressRef.current = true;
+
     const columnOrder = ["onshipping", "arrived", "delivered", "canceled"];
     const currentColumn = columnOrder[currentStatus];
     const toastId = toast.loading(
@@ -450,43 +455,62 @@ const Column = ({
         position: "top-center",
       },
     );
-    await delay(500);
-    const actualData = {
-      id: id,
-      status: status,
-    };
-    const res = await updateSale({ actualData, token: accessToken });
-    if (res.data) {
-      toast.success("Status updated successfully", {
+    try {
+      const actualData = {
+        id: id,
+        status: status,
+      };
+      const res = await updateSale({ actualData, token: accessToken });
+      if (res.data) {
+        toast.success("Status updated successfully", {
+          id: toastId,
+          position: "top-center",
+        });
+        refetchData(currentColumn, type);
+      } else {
+        toast.error("Failed to update status", {
+          id: toastId,
+          position: "top-center",
+        });
+      }
+    } catch (e) {
+      toast.error("Something went wrong", {
         id: toastId,
         position: "top-center",
       });
-      refetchData(currentColumn, type);
-    } else {
-      toast.error("Failed to update status", {
-        id: toastId,
-        position: "top-center",
-      });
+    } finally {
+      isActionInProgressRef.current = false;
     }
   };
 
   const handleDeleteSale = async (id: number) => {
+    if (isActionInProgressRef.current) return;
+    isActionInProgressRef.current = true;
+
     const toastId = toast.loading("Deleting order...", {
       position: "top-center",
     });
-    await delay(500);
-    const res = await deleteSale({ id, token: accessToken });
-    if (res.data) {
-      toast.success("Order deleted successfully", {
+    try {
+      const res = await deleteSale({ id, token: accessToken });
+      if (res.data) {
+        toast.success("Order deleted successfully", {
+          id: toastId,
+          position: "top-center",
+        });
+        refetchData("canceled", false);
+      } else {
+        toast.error("Failed to delete order", {
+          id: toastId,
+          position: "top-center",
+        });
+      }
+    } catch (e) {
+      toast.error("Something went wrong", {
         id: toastId,
         position: "top-center",
       });
-      refetchData("canceled", false);
-    } else {
-      toast.error("Failed to delete order", {
-        id: toastId,
-        position: "top-center",
-      });
+    } finally {
+      isActionInProgressRef.current = false;
     }
   };
 

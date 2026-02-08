@@ -7,7 +7,6 @@ import { Swiper, SwiperSlide } from "swiper/react";
 import { useUpdateQueryParams } from "@/lib/query-params";
 import React, { useState, useMemo, useDeferredValue, useEffect } from "react";
 import { Autoplay, Navigation, Pagination, EffectFade } from "swiper/modules";
-import { motion, AnimatePresence } from "framer-motion";
 
 import { Star as FaStar } from "lucide-react";
 
@@ -67,7 +66,6 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         }))
       : [];
 
-  // Initialize variants + default color + default size
   useEffect(() => {
     if (!data?.variants) return;
 
@@ -79,7 +77,6 @@ export const ProductCard: React.FC<ProductCardProps> = ({
     }
   }, [data?.variants]);
 
-  // Initialize first color
   useEffect(() => {
     if (availableColors.length > 0 && !selectedColor) {
       setSelectedColor({
@@ -90,7 +87,6 @@ export const ProductCard: React.FC<ProductCardProps> = ({
     }
   }, [availableColors, selectedColor]);
 
-  // When color changes, auto-select first available size for that color
   useEffect(() => {
     if (!Array.isArray(variantsData) || !selectedColor) return;
     const variantsForColor = variantsData.filter(
@@ -115,18 +111,15 @@ export const ProductCard: React.FC<ProductCardProps> = ({
     );
   }, [variantsData, selectedColor, selectedSize]);
 
-  // Calculate variant data from matched variant
   const convertedPrice = matchedVariant ? Number(matchedVariant.price) : 0;
   const discount = matchedVariant ? Number(matchedVariant.discount) : 0;
   const stocks = matchedVariant ? matchedVariant.stock : 0;
 
-  // Calculate final price
   const finalPrice =
     !convertedPrice || !discount
       ? convertedPrice
       : Number((convertedPrice - convertedPrice * (discount / 100)).toFixed(2));
 
-  // Filter images by selected color; fall back to all if none match
   const displayImages = useMemo(() => {
     if (!data?.images) return [];
     if (!selectedColor) return data.images;
@@ -180,7 +173,6 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           </span>
         </span>
 
-        {/* Product Image Container with Color Picker */}
         <div className="relative w-full rounded-lg">
           <Swiper
             navigation
@@ -195,8 +187,6 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             )}
           >
             {displayImages.map((imageData: InterfaceImage, index: number) => {
-              // Check if original filename (before Django's random suffix & extension) ends with "not"
-              // Handles: "modenot.webp", "test_modenot_U4xNI8b.webp", "modenot.png", etc.
               const baseName =
                 imageData.image.split("/").pop()?.split(".")[0] ?? "";
               const cleanBase = baseName.replace(/_[A-Za-z0-9]{7,}$/, "");

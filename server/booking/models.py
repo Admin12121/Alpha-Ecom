@@ -40,6 +40,12 @@ class Booking(models.Model):
     delivery_date = models.DateField(null=True, blank=True)
     admin_message = models.TextField(blank=True, null=True)
 
+    # Bill / Order Slip Data (JSON format)
+    # Stores: items (list of {sn, description, qty, rate, amount_rs, amount_ps}),
+    #         total_rs, total_ps, advance_rs, advance_ps, balance_rs, balance_ps,
+    #         amount_in_words, date_ordered, date_delivery
+    bill_data = models.JSONField(default=dict, blank=True)
+
     # Coat & Safari, W. Coat Measurements (JSON format)
     # Each measurement has A and B columns
     # Measurements: L (Length), C (Chest), W (Waist), H (Hips),

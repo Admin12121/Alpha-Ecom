@@ -375,15 +375,19 @@ const CartItem = ({
   const { HandleIncreaseItems, HandledecreaseItems, loading } = useCart();
   const convertedPrice = data.variantDetails.price;
   const discount = data.variantDetails.discount;
-  // Simple calculations - React 19 compiler handles optimization
+
   const finalPrice = Number(
     (convertedPrice - convertedPrice * (discount / 100)).toFixed(2),
   );
 
-  // Pure utility function - no need for useCallback
   const truncateText = (text: string, maxLength: number): string => {
     return text.length > maxLength ? `${text.slice(0, maxLength)}...` : text;
   };
+
+  const baseName = data.images.image.split("/").pop()?.split(".")[0] ?? "";
+  const cleanBase = baseName.replace(/_[A-Za-z0-9]{7,}$/, "");
+  const isFullCover = cleanBase.endsWith("not");
+  const imageClassName = isFullCover ? "w-full h-full object-cover" : "";
 
   return (
     <Card className="p-1 w-full rounded-md relative shadow-none bg-transparent h-[90px] bg-white dark:bg-neutral-900">
@@ -398,7 +402,10 @@ const CartItem = ({
               height={100}
               src={data.images.image}
               width={100}
-              className="w-[80px] h-full object-contain"
+              className={cn(
+                "w-[80px] h-full object-contain rounded-sm",
+                imageClassName,
+              )}
             />
           </span>
           <span className="flex items-start flex-col gap-2 justify-between">

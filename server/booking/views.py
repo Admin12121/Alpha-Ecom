@@ -17,6 +17,7 @@ from account.utils import send_email
 
 from .models import Booking
 from .serializers import (
+    BillUpdateSerializer,
     BookingCreateSerializer,
     BookingDetailSerializer,
     BookingListSerializer,
@@ -303,6 +304,81 @@ class BookingViewSet(viewsets.ModelViewSet):
                 "with_measurements": with_measurements,
             }
         )
+
+    @action(detail=True, methods=["patch"])
+    def update_bill(self, request, pk=None):
+        """Create or update bill/order slip data for a booking (admin only)"""
+        booking = self.get_object()
+
+        # Only admin/staff can update bills
+        if not request.user.is_staff:
+            return Response(
+                {"error": "Only admins can create or update bills."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        # Generate bill number if not exists
+        if not booking.bill_number:
+            booking.bill_number = generate_bill_number()
+            booking.save(update_fields=["bill_number"])
+
+        serializer = BillUpdateSerializer(booking, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        booking.refresh_from_db()
+
+        response_serializer = BookingDetailSerializer(booking)
+        return Response(response_serializer.data)
+
+    @action(detail=True, methods=["post"])
+    def send_bill_email(self, request, pk=None):
+        """Send bill/order slip to customer via email"""
+        booking = self.get_object()
+
+        if not request.user.is_staff:
+            return Response(
+                {"error": "Only admins can send bills."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        if not booking.bill_data:
+            return Response(
+                {"error": "No bill data found. Please create a bill first."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            bill = booking.bill_data
+            items = bill.get("items", [])
+
+            subject = f"Order Slip - Bill #{booking.bill_number} | Alphasuits"
+            body = render_to_string(
+                "bill_email.html",
+                {
+                    "bill_number": booking.bill_number,
+                    "name": booking.name,
+                    "address": booking.location,
+                    "phone": booking.phone_number,
+                    "date_ordered": bill.get("date_ordered", ""),
+                    "date_delivery": bill.get("date_delivery", ""),
+                    "items": items,
+                    "total_rs": bill.get("total_rs", ""),
+                    "total_ps": bill.get("total_ps", ""),
+                    "advance_rs": bill.get("advance_rs", ""),
+                    "advance_ps": bill.get("advance_ps", ""),
+                    "balance_rs": bill.get("balance_rs", ""),
+                    "balance_ps": bill.get("balance_ps", ""),
+                    "amount_in_words": bill.get("amount_in_words", ""),
+                },
+            )
+            send_email(subject, booking.email, body)
+            return Response({"msg": "Bill sent to customer email successfully."})
+        except Exception as e:
+            logger.error(f"Failed to send bill email for booking {pk}: {e}")
+            return Response(
+                {"error": "Failed to send bill email."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
 
 class CustomerLookupView(APIView):
