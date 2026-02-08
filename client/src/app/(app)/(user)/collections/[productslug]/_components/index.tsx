@@ -1,6 +1,7 @@
 "use client";
 import dynamic from "next/dynamic";
 import React, { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   useProductsViewQuery,
   useRecommendedProductsViewQuery,
@@ -9,6 +10,7 @@ import ImageContainer from "./image";
 import Spinner from "@/components/ui/spinner";
 import { useAuthUser } from "@/hooks/use-auth-user";
 import Reviewcards, { Review } from "./review-card";
+import WriteReview from "./write-review";
 
 const Sidebar = dynamic(() => import("./sidebar"), {
   ssr: false,
@@ -61,6 +63,8 @@ interface Product {
 const ProductObject = ({ productslug }: { productslug: string }) => {
   const [product, setProduct] = useState<Product | null>(null);
   const { data, isLoading, error } = useProductsViewQuery({ productslug });
+  const searchParams = useSearchParams();
+  const [reviewSheetOpen, setReviewSheetOpen] = useState(false);
 
   useEffect(() => {
     if (data) {
@@ -77,6 +81,13 @@ const ProductObject = ({ productslug }: { productslug: string }) => {
     }
   }, [data]);
 
+  // Auto-open review sheet when ?review=true is in the URL (e.g. from email link)
+  useEffect(() => {
+    if (searchParams.get("review") === "true" && product) {
+      setReviewSheetOpen(true);
+    }
+  }, [searchParams, product]);
+
   if (error) return <ProductNotFound />;
   if (isLoading || !product) return <LoadingSection />;
 
@@ -90,6 +101,12 @@ const ProductObject = ({ productslug }: { productslug: string }) => {
         />
       )}
       <RecommendedProducts product_id={product!.id} className="mb-14" />
+      {/* Controlled WriteReview sheet for auto-open via ?review=true */}
+      <WriteReview
+        product={product}
+        open={reviewSheetOpen}
+        onOpenChange={setReviewSheetOpen}
+      />
     </main>
   );
 };

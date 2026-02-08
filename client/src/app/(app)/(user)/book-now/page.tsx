@@ -250,7 +250,7 @@ export default function BookNowPage() {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 w-full mt-8">
           <Card className="bg-white flex flex-col justify-between dark:bg-neutral-900/50 rounded-xl border shadow-sm overflow-hidden">
-            <div className="relative w-full aspect-video bg-gradient-to-br from-purple-900 via-purple-800 to-indigo-900">
+            <div className="relative w-full aspect-video bg-gradient-to-br from-amber-900 via-amber-800 to-indigo-900">
               <div className="absolute inset-0 w-full h-full">
                 <iframe
                   className="absolute inset-0 w-full h-full rounded-tl-sm rounded-tr-sm"
@@ -413,7 +413,7 @@ export default function BookNowPage() {
                   >
                     <Label
                       htmlFor="in_store"
-                      className="flex flex-col items-center justify-center rounded-xl border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground cursor-pointer [&:has([data-state=checked])]:border-purple-500 [&:has([data-state=checked])]:bg-purple-50 dark:[&:has([data-state=checked])]:bg-purple-900/20"
+                      className="flex flex-col items-center justify-center rounded-xl border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground cursor-pointer [&:has([data-state=checked])]:border-amber-500 [&:has([data-state=checked])]:bg-amber-50 dark:[&:has([data-state=checked])]:bg-amber-900/20"
                     >
                       <RadioGroupItem
                         value="in_store"
@@ -428,7 +428,7 @@ export default function BookNowPage() {
                     </Label>
                     <Label
                       htmlFor="home_visit"
-                      className="flex flex-col items-center justify-center rounded-xl border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground cursor-pointer [&:has([data-state=checked])]:border-purple-500 [&:has([data-state=checked])]:bg-purple-50 dark:[&:has([data-state=checked])]:bg-purple-900/20"
+                      className="flex flex-col items-center justify-center rounded-xl border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground cursor-pointer [&:has([data-state=checked])]:border-amber-500 [&:has([data-state=checked])]:bg-amber-50 dark:[&:has([data-state=checked])]:bg-amber-900/20"
                     >
                       <RadioGroupItem
                         value="home_visit"
@@ -443,7 +443,7 @@ export default function BookNowPage() {
                     </Label>
                     <Label
                       htmlFor="self"
-                      className="flex flex-col items-center justify-center rounded-xl border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground cursor-pointer [&:has([data-state=checked])]:border-purple-500 [&:has([data-state=checked])]:bg-purple-50 dark:[&:has([data-state=checked])]:bg-purple-900/20"
+                      className="flex flex-col items-center justify-center rounded-xl border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground cursor-pointer [&:has([data-state=checked])]:border-amber-500 [&:has([data-state=checked])]:bg-amber-50 dark:[&:has([data-state=checked])]:bg-amber-900/20"
                     >
                       <RadioGroupItem
                         value="self"
@@ -461,7 +461,7 @@ export default function BookNowPage() {
 
                 {/* Self Measurement Section */}
                 {watchMeasurementType === "self" && (
-                  <div className="space-y-4 rounded-xl border-2 border-purple-200 dark:border-purple-800 bg-purple-50/50 dark:bg-purple-900/10 p-4">
+                  <div className="space-y-4 rounded-xl border-2 border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-900/10 p-4">
                     <div>
                       <h3 className="font-semibold text-sm flex items-center gap-2">
                         📐 Enter Your Measurements

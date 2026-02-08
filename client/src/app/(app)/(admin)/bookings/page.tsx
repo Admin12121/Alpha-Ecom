@@ -105,7 +105,7 @@ const statusColors: Record<string, string> = {
   completed:
     "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
   delivered:
-    "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400",
+    "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400",
   cancelled: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
 };
 
@@ -549,9 +549,9 @@ export default function AdminBookingsPage() {
             <p className="text-xs text-muted-foreground">Completed</p>
           </CardContent>
         </Card>
-        <Card className="border-purple-200 dark:border-purple-900">
+        <Card className="border-amber-200 dark:border-amber-900">
           <CardContent className="p-3 text-center">
-            <p className="text-xl font-bold text-purple-600">
+            <p className="text-xl font-bold text-amber-600">
               {stats?.delivered || 0}
             </p>
             <p className="text-xs text-muted-foreground">Delivered</p>

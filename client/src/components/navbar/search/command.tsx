@@ -69,9 +69,11 @@ export default function Component() {
   const [open, setOpen] = React.useState(false);
   const [search, setSearch] = React.useState("");
   const [matchedCommand, setMatchedCommand] = React.useState<Route | null>(
-    null
+    null,
   );
-  const [ recentProducts, setRecentProducts ] = React.useState<number[]>(getRecentViewedProducts() || []);
+  const [recentProducts, setRecentProducts] = React.useState<number[]>(
+    getRecentViewedProducts() || [],
+  );
   const [tag, setTag] = React.useState<string[]>(getRandomItems(titles, 4));
   const { data, isLoading } = useTrendingProductsViewQuery({ skip: !open });
 
@@ -120,7 +122,7 @@ export default function Component() {
       .trim();
 
     const match = allCommands.find((command) =>
-      command.title.toLowerCase().includes(normalizedInput)
+      command.title.toLowerCase().includes(normalizedInput),
     );
 
     setMatchedCommand(match || null);
@@ -262,7 +264,7 @@ export default function Component() {
             Not what you’re looking for? Try the{" "}
             <Button
               variant="link"
-              className="text-xs px-0 font-normal text-purple-600 underline"
+              className="text-xs px-0 font-normal text-amber-600 underline"
             >
               Help Center
             </Button>

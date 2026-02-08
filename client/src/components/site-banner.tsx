@@ -39,16 +39,15 @@ export default function SiteBanner() {
       {/* Promotional Message Banner */}
       {showMessage && (
         <div
-          className="group relative top-0 bg-purple-600 py-2 text-white transition-all duration-300 md:py-0 w-full"
+          className="group relative top-0 bg-amber-600 py-2 text-white transition-all duration-300 md:py-0 w-full"
           style={{
-            background: "linear-gradient(to right, #9353d3, #9333ea, #4f46e5)",
+            background:
+              "linear-gradient(to right, rgb(209 153 73), rgb(177 125 56), rgb(82 71 53))",
           }}
         >
           <div className="container flex flex-col items-center justify-center gap-4 md:h-9 md:flex-row">
             <div className="inline-flex text-xs leading-normal md:text-sm">
-              <span className="ml-1 font-[580] dark:font-[550]">
-                {message}
-              </span>
+              <span className="ml-1 font-[580] dark:font-[550]">{message}</span>
               <ChevronRight className="ml-1 mt-[3px] hidden size-4 transition-all duration-300 ease-out group-hover:translate-x-1 lg:inline-block" />
             </div>
             <button

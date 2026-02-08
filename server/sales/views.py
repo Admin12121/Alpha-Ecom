@@ -1,6 +1,7 @@
 import logging
 from datetime import timedelta
 
+from django.conf import settings
 from django.db import transaction
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
@@ -205,10 +206,12 @@ class SalesViewSet(viewsets.ModelViewSet):
 
     def perform_update(self, serializer):
         instance = self.get_object()
+        old_status = instance.status
         old_date = instance.expected_delivery_date
         updated_instance = serializer.save()
 
         new_date = updated_instance.expected_delivery_date
+        new_status = updated_instance.status
 
         if old_date and new_date and new_date > old_date:
             try:
@@ -223,6 +226,54 @@ class SalesViewSet(viewsets.ModelViewSet):
                 send_email(subject, updated_instance.costumer_name.email, body)
             except Exception as e:
                 logger.error(f"Failed to send delivery delay email: {e}")
+
+        # Send review invitation email when order is delivered/successful
+        if old_status not in ("delivered", "successful") and new_status in (
+            "delivered",
+            "successful",
+        ):
+            try:
+                self._send_review_invitation_email(updated_instance)
+            except Exception as e:
+                logger.error(
+                    f"Failed to send review invitation email for "
+                    f"{updated_instance.transactionuid}: {e}"
+                )
+
+    def _send_review_invitation_email(self, sale):
+        """Send an email inviting the customer to review their purchased products."""
+        user = sale.costumer_name
+        frontend_url = getattr(settings, "FRONTEND_URL", "").rstrip("/")
+
+        # Get all products from this order
+        sale_products = sale.products.select_related("product").all()
+        products_info = []
+        for sp in sale_products:
+            if sp.product:
+                product_url = (
+                    f"{frontend_url}/collections/{sp.product.productslug}?review=true"
+                )
+                products_info.append(
+                    {
+                        "product_name": sp.product.product_name,
+                        "review_url": product_url,
+                    }
+                )
+
+        if not products_info:
+            return
+
+        subject = f"Your order #{sale.transactionuid} has been delivered — Share your experience!"
+        body = render_to_string(
+            "delivery_review.html",
+            {
+                "first_name": user.first_name or "Valued Customer",
+                "transactionuid": sale.transactionuid,
+                "products": products_info,
+                "reviews_url": f"{frontend_url}/reviews",
+            },
+        )
+        send_email(subject, user.email, body)
 
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()

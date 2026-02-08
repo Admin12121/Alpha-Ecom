@@ -195,10 +195,15 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             )}
           >
             {displayImages.map((imageData: InterfaceImage, index: number) => {
-              const isPng = ["not.png", "not.webp"].some((ext) =>
-                imageData.image.endsWith(ext),
-              );
-              const imageClassName = isPng ? "w-full h-full object-cover" : "";
+              // Check if original filename (before Django's random suffix & extension) ends with "not"
+              // Handles: "modenot.webp", "test_modenot_U4xNI8b.webp", "modenot.png", etc.
+              const baseName =
+                imageData.image.split("/").pop()?.split(".")[0] ?? "";
+              const cleanBase = baseName.replace(/_[A-Za-z0-9]{7,}$/, "");
+              const isFullCover = cleanBase.endsWith("not");
+              const imageClassName = isFullCover
+                ? "w-full h-full object-cover"
+                : "";
 
               return (
                 <SwiperSlide key={index}>

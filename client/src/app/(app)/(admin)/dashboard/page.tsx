@@ -95,7 +95,7 @@ const STATUS_COLORS: Record<string, string> = {
   proceed:
     "text-indigo-600 bg-indigo-100 dark:bg-indigo-900/30 dark:text-indigo-400",
   packed:
-    "text-purple-600 bg-purple-100 dark:bg-purple-900/30 dark:text-purple-400",
+    "text-amber-600 bg-amber-100 dark:bg-amber-900/30 dark:text-amber-400",
   delivered:
     "text-green-600 bg-green-100 dark:bg-green-900/30 dark:text-green-400",
   successful:

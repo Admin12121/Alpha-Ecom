@@ -1,10 +1,17 @@
 "use client";
 import dynamic from "next/dynamic";
-import React, { useState, useEffect, useReducer, useCallback, useTransition, useMemo } from "react";
+import React, {
+  useState,
+  useEffect,
+  useReducer,
+  useCallback,
+  useTransition,
+  useMemo,
+} from "react";
 import {
   useProductsViewQuery,
   useTrendingProductsViewQuery,
-  useGetlayoutQuery
+  useGetlayoutQuery,
 } from "@/lib/store/Service/api";
 import { Settings2 } from "lucide-react";
 import { useSearchParams } from "next/navigation";
@@ -30,7 +37,7 @@ import {
 const Sidebar = dynamic(() => import("./sidebar"), { ssr: false });
 const FeatureProduct = dynamic(
   () => import("@/components/global/feature-product"),
-  { ssr: false }
+  { ssr: false },
 );
 
 interface State {
@@ -103,10 +110,14 @@ export interface Categorty {
 
 const CollectionPage = () => {
   const { data: layoutData } = useGetlayoutQuery({ layoutslug: "home" });
-  const siteConfig: Categorty = useMemo(() => layoutData?.config?.filters || {
-    category: [],
-    materials: { color: [] }
-  }, [layoutData]);
+  const siteConfig: Categorty = useMemo(
+    () =>
+      layoutData?.config?.filters || {
+        category: [],
+        materials: { color: [] },
+      },
+    [layoutData],
+  );
   const searchParams = useSearchParams();
   const category = searchParams.get("category");
   const search = searchParams.get("search");
@@ -139,8 +150,10 @@ const CollectionPage = () => {
         }
 
         // Only add new items, prevent duplicates
-        const existingIds = new Set(prev?.map(p => p.id) || []);
-        const newItems = data.results.filter((p: Product) => !existingIds.has(p.id));
+        const existingIds = new Set(prev?.map((p) => p.id) || []);
+        const newItems = data.results.filter(
+          (p: Product) => !existingIds.has(p.id),
+        );
 
         return [...(prev || []), ...newItems];
       });
@@ -188,7 +201,7 @@ const CollectionPage = () => {
             </p>
             <div
               className="space-y-2 flex gap-3 md:items-center flex-col md:flex-row"
-              style={{ "--ring": "270 66.67% 47.06%" } as React.CSSProperties}
+              style={{ "--ring": "35.22deg 60% 54.9%" } as React.CSSProperties}
             >
               <Select
                 defaultValue="bestselling"
@@ -214,7 +227,7 @@ const CollectionPage = () => {
                 className={cn(
                   "!m-0 gap-2 min-w-[8rem] px-3 flex !justify-between w-full",
                   filters &&
-                  "ring-offset-2 ring-2 dark:ring-offset-background ring-purple-600/40 transition "
+                    "ring-offset-2 ring-2 dark:ring-offset-background ring-amber-600/40 transition ",
                 )}
                 onClick={handleClose}
               >
@@ -238,7 +251,7 @@ const CollectionPage = () => {
                       "grid grid-cols-1 md:grid-cols-2 gap-2 lg:grid-cols-3 xl:grid-cols-4 lg:gap-4 transition-opacity motion-reduce:transition-none",
                       filters && "lg:grid-cols-2 xl:grid-cols-3",
                       loading ||
-                      (isLoading && "pointer-events-none opacity-50 blur-sm")
+                        (isLoading && "pointer-events-none opacity-50 blur-sm"),
                     )}
                   >
                     {products.map((product, index) => (
@@ -271,14 +284,14 @@ const CollectionPage = () => {
               className={cn(
                 "hidden lg:w-[330px] max-md:w-full left-96 relative transition-all transform duration-500 ease-in-out",
                 filters &&
-                "flex absolute lg:relative top-0 left-0 opacity-100 z-50 lg:z-0 w-full lg:translate-x-0",
-                !filters && "translate-x-full"
+                  "flex absolute lg:relative top-0 left-0 opacity-100 z-50 lg:z-0 w-full lg:translate-x-0",
+                !filters && "translate-x-full",
               )}
             >
               <span
                 className={cn(
                   "flex w-full rounded-lg sticky top-[70px] lg:h-[82dvh] ",
-                  "max-w-[95rem] h-[100dvh] p-2 lg:p-0"
+                  "max-w-[95rem] h-[100dvh] p-2 lg:p-0",
                 )}
               >
                 <Sidebar

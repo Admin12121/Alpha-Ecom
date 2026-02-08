@@ -15,7 +15,7 @@ function Callout({
       "border-orange-500/30 bg-orange-500/5 text-orange-700 dark:text-orange-300",
     tip: "border-green-500/30 bg-green-500/5 text-green-700 dark:text-green-300",
     important:
-      "border-purple-500/30 bg-purple-500/5 text-purple-700 dark:text-purple-300",
+      "border-amber-500/30 bg-amber-500/5 text-amber-700 dark:text-amber-300",
   };
 
   const icons = {

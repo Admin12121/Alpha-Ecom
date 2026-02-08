@@ -42,7 +42,17 @@ const validateFile = (file: File) => {
   return validTypes.includes(file.type) && file.size <= maxSize;
 };
 
-const WriteReview = ({ product, link }: any) => {
+const WriteReview = ({
+  product,
+  link,
+  open: controlledOpen,
+  onOpenChange: controlledOnOpenChange,
+}: {
+  product: any;
+  link?: boolean;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+}) => {
   const { accessToken } = useAuthUser();
   const [postReview, { isLoading }] = usePostReviewMutation();
   const fileInputRef = React.useRef<HTMLInputElement>(null);
@@ -91,7 +101,7 @@ const WriteReview = ({ product, link }: any) => {
     if (categoryData.image) {
       actualData.append("image", categoryData.image!);
     }
-    const response = await postReview({ actualData, token: accessToken });
+    const response: any = await postReview({ actualData, token: accessToken });
     if (response.data) {
       toast.success("Review waiting to be verified", {
         id: toastId,
@@ -102,8 +112,16 @@ const WriteReview = ({ product, link }: any) => {
         image: null,
         imagePreview: null,
       });
+      // Close the sheet if controlled externally
+      if (controlledOnOpenChange) {
+        controlledOnOpenChange(false);
+      }
     } else {
-      toast.error("Something went wrong", {
+      const errorMsg =
+        response?.error?.data?.error ||
+        response?.error?.data?.detail ||
+        "Something went wrong";
+      toast.error(errorMsg, {
         id: toastId,
         position: "top-center",
       });
@@ -111,7 +129,7 @@ const WriteReview = ({ product, link }: any) => {
   };
 
   const handleCategoryImageChange = (
-    e: React.ChangeEvent<HTMLInputElement>
+    e: React.ChangeEvent<HTMLInputElement>,
   ) => {
     const file = e.target.files?.[0];
     if (file && validateFile(file)) {
@@ -121,45 +139,54 @@ const WriteReview = ({ product, link }: any) => {
       });
     } else {
       toast.error(
-        "Invalid File Format. Please upload a PNG image with a maximum size of 10MB."
+        "Invalid File Format. Please upload a PNG image with a maximum size of 10MB.",
       );
     }
   };
 
+  const isControlled = controlledOpen !== undefined;
+
   return (
-    <Sheet>
-      <SheetTrigger asChild>
-        {link ? (
-          <p className="text-xs text-neutral-400 cursor-pointer">
-            Write a Review
-          </p>
-        ) : (
-          <Button className="bg-foreground w-full text-background" size="sm">
-            Write a Review
-          </Button>
-        )}
-      </SheetTrigger>
+    <Sheet
+      open={isControlled ? controlledOpen : undefined}
+      onOpenChange={isControlled ? controlledOnOpenChange : undefined}
+    >
+      {!isControlled && (
+        <SheetTrigger asChild>
+          {link ? (
+            <p className="text-xs text-neutral-400 cursor-pointer">
+              Write a Review
+            </p>
+          ) : (
+            <Button className="bg-foreground w-full text-background" size="sm">
+              Write a Review
+            </Button>
+          )}
+        </SheetTrigger>
+      )}
       <SheetContent className="border-0 w-[97dvw] mr-[1.5dvw] md:min-w-[500px] h-[98dvh] top-[1vh] rounded-lg bg-neutral-200 dark:bg-neutral-950 md:mr-2 p-2 overflow-y-auto px-3">
         <SheetHeader className="text-start">
           <SheetTitle className="text-sm font-medium">
             Write a Review
           </SheetTitle>
           <main className="flex flex-col gap-5">
-            <span className=" flex flex-row gap-2 mt-2 bg-white dark:bg-neutral-900 p-1 rounded-lg">
-              <Image
-                src={product.images[0].image}
-                alt="product"
-                width={80}
-                height={80}
-                className="rounded-md object-cover p-1 px-3 bg-zinc-950"
-              />
-              <span className="flex flex-col">
-                <p className="text-sm">{product.product_name}</p>
-                <p className="text-xs text-zinc-400">
-                  {product.categoryname}
-                </p>
+            {product?.images?.[0]?.image && (
+              <span className=" flex flex-row gap-2 mt-2 bg-white dark:bg-neutral-900 p-1 rounded-lg">
+                <Image
+                  src={product.images[0].image}
+                  alt="product"
+                  width={80}
+                  height={80}
+                  className="rounded-md object-cover p-1 px-3 bg-zinc-950"
+                />
+                <span className="flex flex-col">
+                  <p className="text-sm">{product.product_name}</p>
+                  <p className="text-xs text-zinc-400">
+                    {product.categoryname || product.category_name}
+                  </p>
+                </span>
               </span>
-            </span>
+            )}
             <form
               onSubmit={handleSubmit(onSubmit)}
               className="w-full flex flex-col gap-5"

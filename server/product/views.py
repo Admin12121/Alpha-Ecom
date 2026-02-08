@@ -120,6 +120,7 @@ class ProductViewSet(viewsets.ModelViewSet):
         Product.objects.select_related("category")
         .prefetch_related("productvariant_set__color", "reviews")
         .all()
+        .order_by("-id")
     )
     serializer_class = ProductSerializer
     permission_classes = [CustomReadOnly]
@@ -860,12 +861,13 @@ class ReviewPostViewSet(viewsets.ModelViewSet):
         )
 
     def create(self, request, *args, **kwargs):
-        data = request.data
+        data = request.data.copy()  # Make a mutable copy of QueryDict
         user = request.user
         data["user"] = user.id
 
+        product_slug = data.get("product_slug")
         try:
-            product = Product.objects.get(productslug=data.get("product_slug"))
+            product = Product.objects.get(productslug=product_slug)
         except Product.DoesNotExist:
             return Response(
                 {"error": "Product not found."}, status=status.HTTP_404_NOT_FOUND
@@ -890,7 +892,9 @@ class ReviewPostViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        image = data.pop("image", None)
+        # Remove product_slug from data as it's not a model field
+        data.pop("product_slug", None)
+
         serializer = self.get_serializer(data=data)
         if serializer.is_valid(raise_exception=True):
             with transaction.atomic():
@@ -898,8 +902,8 @@ class ReviewPostViewSet(viewsets.ModelViewSet):
                 image = request.FILES.get("image")
                 if image:
                     try:
-                        data = {"review": serializer.data["id"], "image": image}
-                        image_serializer = ReviewImageWriteSerializer(data=data)
+                        image_data = {"review": serializer.data["id"], "image": image}
+                        image_serializer = ReviewImageWriteSerializer(data=image_data)
                         image_serializer.is_valid(raise_exception=True)
                         image_serializer.save()
                     except Exception as e:
@@ -1070,6 +1074,78 @@ class ReviewViewSet(viewsets.ModelViewSet):
             reviews, many=True, context={"request": request}
         )
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+    @action(
+        detail=False,
+        methods=["get"],
+        permission_classes=[IsAuthenticated],
+        url_path="pending-reviews",
+    )
+    def pending_reviews(self, request, *args, **kwargs):
+        """
+        Returns products the user has purchased (delivered/successful) but
+        has NOT yet reviewed, grouped by distinct purchase transaction.
+        Each entry represents one review opportunity.
+        """
+        user = request.user
+        eligible_statuses = ["delivered", "successful"]
+
+        # Get all delivered sale-product entries for this user
+        sale_products = (
+            Saled_Products.objects.filter(
+                transition__costumer_name=user,
+                transition__status__in=eligible_statuses,
+            )
+            .select_related("product", "transition", "product__category")
+            .prefetch_related("product__images")
+        )
+
+        # Build a dict: product_id -> list of transition_ids (distinct purchases)
+        product_purchases = {}
+        for sp in sale_products:
+            if sp.product is None:
+                continue
+            pid = sp.product.id
+            tid = sp.transition_id
+            if pid not in product_purchases:
+                product_purchases[pid] = {"product": sp.product, "transitions": set()}
+            product_purchases[pid]["transitions"].add(tid)
+
+        # Count existing reviews per product for this user
+        existing_review_counts = dict(
+            Review.objects.filter(user=user)
+            .values_list("product_id")
+            .annotate(cnt=Count("id"))
+            .values_list("product_id", "cnt")
+        )
+
+        # Build pending review list
+        pending = []
+        for pid, info in product_purchases.items():
+            eligible_count = len(info["transitions"])
+            reviewed_count = existing_review_counts.get(pid, 0)
+            remaining = eligible_count - reviewed_count
+            if remaining > 0:
+                product = info["product"]
+                first_image = product.images.first()
+                pending.append(
+                    {
+                        "product_id": product.id,
+                        "product_name": product.product_name,
+                        "productslug": product.productslug,
+                        "category_name": (
+                            product.category.name if product.category else ""
+                        ),
+                        "product_image": (
+                            request.build_absolute_uri(first_image.image.url)
+                            if first_image and first_image.image
+                            else None
+                        ),
+                        "remaining_reviews": remaining,
+                    }
+                )
+
+        return Response(pending, status=status.HTTP_200_OK)
 
 
 class NotifyUserViewSet(viewsets.ModelViewSet):

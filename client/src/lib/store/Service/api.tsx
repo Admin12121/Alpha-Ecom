@@ -707,6 +707,7 @@ export const userAuthapi = createApi({
       invalidatesTags: [
         { type: "Reviews", id: "LIST" },
         { type: "UserReviews", id: "LIST" },
+        { type: "UserReviews", id: "PENDING" },
       ],
     }),
 
@@ -772,6 +773,15 @@ export const userAuthapi = createApi({
         headers: createHeaders(token),
       }),
       providesTags: [{ type: "UserReviews", id: "LIST" }],
+    }),
+
+    getPendingReviews: builder.query({
+      query: ({ token }) => ({
+        url: `api/products/reviews/pending-reviews/`,
+        method: "GET",
+        headers: createHeaders(token),
+      }),
+      providesTags: [{ type: "UserReviews", id: "PENDING" }],
     }),
 
     // ==================== SALES / ORDERS API ====================
@@ -1236,6 +1246,7 @@ export const {
   useDeleteReviewMutation,
   useGetReviewQuery,
   useGetUserReviewQuery,
+  useGetPendingReviewsQuery,
   // Sales / Orders
   usePostSaleMutation,
   useGetOrdersQuery,
