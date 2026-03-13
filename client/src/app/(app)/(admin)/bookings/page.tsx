@@ -47,6 +47,15 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -77,6 +86,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
   Popover,
   PopoverContent,
   PopoverTrigger,
@@ -84,6 +98,17 @@ import {
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import {
+  bookingFormSchema,
+  coatFieldMeta,
+  coatFields,
+  pantFieldMeta,
+  pantFields,
+  shirtFieldMeta,
+  shirtFields,
+  type BookingFormData,
+  type MeasurementFieldMeta,
+} from "@/lib/booking-form";
 
 import { useAuthUser } from "@/hooks/use-auth-user";
 import {
@@ -119,11 +144,6 @@ const statusIcons: Record<string, React.ReactNode> = {
   delivered: <Truck className="w-4 h-4" />,
   cancelled: <XCircle className="w-4 h-4" />,
 };
-
-// Measurement field definitions
-const coatFields = ["L", "C", "W", "H", "S", "B", "SL", "N"];
-const pantFields = ["L", "W", "H", "T", "HIL", "K", "B"];
-const shirtFields = ["L", "C", "W", "H", "S", "SL", "N"];
 
 const measurementSchema = z.object({
   status: z.enum([
@@ -166,17 +186,27 @@ interface Booking {
   created_at: string;
 }
 
+interface PaginatedBookingsResponse {
+  count: number;
+  next?: string | null;
+  page_size?: number;
+  previous?: string | null;
+  results: Booking[];
+}
+
 // Measurement Input Grid Component
 function MeasurementGrid({
   fields,
   measurements,
   onChange,
   title,
+  fieldMeta,
 }: {
   fields: string[];
   measurements: Record<string, Record<string, string>>;
   onChange: (field: string, column: "A" | "B", value: string) => void;
   title: string;
+  fieldMeta?: Partial<Record<string, MeasurementFieldMeta>>;
 }) {
   return (
     <div className="border rounded-lg overflow-hidden">
@@ -188,31 +218,68 @@ function MeasurementGrid({
         <div className="p-2 text-center text-xs font-medium border-r">A</div>
         <div className="p-2 text-center text-xs font-medium">B</div>
       </div>
-      {fields.map((field) => (
-        <div key={field} className="grid grid-cols-3 border-b last:border-b-0">
-          <div className="p-2 font-medium border-r bg-muted/30 flex items-center justify-center text-sm">
-            {field}
+      {fields.map((field) => {
+        const meta = fieldMeta?.[field];
+
+        return (
+          <div
+            key={field}
+            className="grid grid-cols-3 border-b last:border-b-0"
+          >
+            <div className="p-2 border-r bg-muted/30 flex items-center justify-center text-center leading-tight">
+              <p className="text-xs font-semibold">
+                {meta?.helper ? (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="cursor-help underline decoration-dotted underline-offset-2">
+                        {meta?.label || field}
+                        {meta?.label && (
+                          <span className="text-[10px] text-muted-foreground">
+                            {" "}
+                            ({field})
+                          </span>
+                        )}
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent
+                      side="top"
+                      className="max-w-xs text-[11px] leading-relaxed"
+                    >
+                      {meta.helper}
+                    </TooltipContent>
+                  </Tooltip>
+                ) : (
+                  <>{meta?.label || field}</>
+                )}
+                {!meta?.helper && meta?.label && (
+                  <span className="text-[10px] text-muted-foreground">
+                    {" "}
+                    ({field})
+                  </span>
+                )}
+              </p>
+            </div>
+            <div className="p-1 border-r">
+              <Input
+                type="text"
+                className="h-7 text-center text-sm"
+                value={measurements[field]?.A || ""}
+                onChange={(e) => onChange(field, "A", e.target.value)}
+                placeholder="-"
+              />
+            </div>
+            <div className="p-1">
+              <Input
+                type="text"
+                className="h-7 text-center text-sm"
+                value={measurements[field]?.B || ""}
+                onChange={(e) => onChange(field, "B", e.target.value)}
+                placeholder="-"
+              />
+            </div>
           </div>
-          <div className="p-1 border-r">
-            <Input
-              type="text"
-              className="h-7 text-center text-sm"
-              value={measurements[field]?.A || ""}
-              onChange={(e) => onChange(field, "A", e.target.value)}
-              placeholder="-"
-            />
-          </div>
-          <div className="p-1">
-            <Input
-              type="text"
-              className="h-7 text-center text-sm"
-              value={measurements[field]?.B || ""}
-              onChange={(e) => onChange(field, "B", e.target.value)}
-              placeholder="-"
-            />
-          </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
@@ -230,22 +297,8 @@ function formatTimeAMPM(time: string): string {
 }
 
 // Schema for admin create booking form
-const createBookingSchema = z.object({
-  name: z.string().min(2, "Name must be at least 2 characters"),
-  email: z.string().email("Please enter a valid email address"),
-  phone_number: z.string().min(10, "Please enter a valid phone number"),
-  location: z.string().min(1, "Please enter an address or location"),
-  measurement_type: z.enum(["in_store", "home_visit", "self"]),
-  preferred_date: z.date({ required_error: "Please select a date" }),
-  preferred_time: z.string().min(1, "Please select a time"),
-  customer_notes: z.string().optional(),
-  // Optional measurements when admin fills them directly
-  coat_measurements: z.record(z.record(z.string())).optional(),
-  pant_measurements: z.record(z.record(z.string())).optional(),
-  shirt_measurements: z.record(z.record(z.string())).optional(),
-});
-
-type CreateBookingFormData = z.infer<typeof createBookingSchema>;
+const createBookingSchema = bookingFormSchema;
+type CreateBookingFormData = BookingFormData;
 
 const timeSlots = [
   { value: "09:00", label: "09:00 AM" },
@@ -270,6 +323,8 @@ export default function AdminBookingsPage() {
   const { accessToken: token } = useAuthUser();
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [page, setPage] = useState(1);
+  const [rowsperpage, setRowsPerPage] = useState<number | null>(null);
   const [selectedBookingId, setSelectedBookingId] = useState<number | null>(
     null,
   );
@@ -288,6 +343,8 @@ export default function AdminBookingsPage() {
       token,
       status: statusFilter !== "all" ? statusFilter : undefined,
       search: searchQuery || undefined,
+      page,
+      rowsperpage,
     },
     { skip: !token },
   );
@@ -315,6 +372,68 @@ export default function AdminBookingsPage() {
   const [updateMeasurements] = useUpdateMeasurementsMutation();
   const [deleteBooking] = useDeleteBookingMutation();
   const [createBooking, { isLoading: isCreating }] = useCreateBookingMutation();
+
+  const paginatedBookings = Array.isArray(bookings)
+    ? null
+    : (bookings as PaginatedBookingsResponse | undefined);
+  const allBookingItems = Array.isArray(bookings)
+    ? bookings
+    : paginatedBookings?.results || [];
+  const totalBookings = Array.isArray(bookings)
+    ? bookings.length
+    : paginatedBookings?.count || 0;
+  const effectivePageSize =
+    rowsperpage ||
+    paginatedBookings?.page_size ||
+    10;
+  const bookingItems = Array.isArray(bookings)
+    ? allBookingItems.slice(
+        (page - 1) * effectivePageSize,
+        page * effectivePageSize,
+      )
+    : allBookingItems;
+  const totalPages = Math.max(1, Math.ceil(totalBookings / effectivePageSize));
+  const hasPreviousPage = page > 1;
+  const hasNextPage = page < totalPages;
+  const currentRangeStart =
+    totalBookings > 0 ? (page - 1) * effectivePageSize + 1 : 0;
+  const currentRangeEnd =
+    totalBookings > 0
+      ? Math.min(currentRangeStart + bookingItems.length - 1, totalBookings)
+      : 0;
+
+  const getPageNumbers = () => {
+    const pageNumbers: (number | "ellipsis")[] = [];
+    const maxVisiblePages = 5;
+
+    if (totalPages <= maxVisiblePages) {
+      for (let i = 1; i <= totalPages; i++) {
+        pageNumbers.push(i);
+      }
+    } else if (page <= 3) {
+      for (let i = 1; i <= 4; i++) {
+        pageNumbers.push(i);
+      }
+      pageNumbers.push("ellipsis");
+      pageNumbers.push(totalPages);
+    } else if (page >= totalPages - 2) {
+      pageNumbers.push(1);
+      pageNumbers.push("ellipsis");
+      for (let i = totalPages - 3; i <= totalPages; i++) {
+        pageNumbers.push(i);
+      }
+    } else {
+      pageNumbers.push(1);
+      pageNumbers.push("ellipsis");
+      for (let i = page - 1; i <= page + 1; i++) {
+        pageNumbers.push(i);
+      }
+      pageNumbers.push("ellipsis");
+      pageNumbers.push(totalPages);
+    }
+
+    return pageNumbers;
+  };
 
   const form = useForm<MeasurementFormData>({
     resolver: zodResolver(measurementSchema),
@@ -349,6 +468,12 @@ export default function AdminBookingsPage() {
       populateForm(selectedBooking);
     }
   }, [selectedBooking, populateForm]);
+
+  useEffect(() => {
+    if (page > totalPages) {
+      setPage(totalPages);
+    }
+  }, [page, totalPages]);
 
   const handleMeasurementChange = (
     type: "coat" | "pant" | "shirt",
@@ -457,14 +582,21 @@ export default function AdminBookingsPage() {
     try {
       const payload: any = {
         name: data.name,
-        email: data.email,
-        phone_number: data.phone_number,
-        location: data.location,
         measurement_type: data.measurement_type,
         preferred_date: format(data.preferred_date, "yyyy-MM-dd"),
         preferred_time: data.preferred_time,
         customer_notes: data.customer_notes || "",
       };
+
+      if (data.email) {
+        payload.email = data.email;
+      }
+      if (data.phone_number) {
+        payload.phone_number = data.phone_number;
+      }
+      if (data.location) {
+        payload.location = data.location;
+      }
 
       // Include measurements if provided
       const hasCoat =
@@ -580,13 +712,22 @@ export default function AdminBookingsPage() {
               <Input
                 placeholder="Search by name, phone, email, or bill number..."
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setPage(1);
+                }}
                 className="pl-9"
               />
             </div>
           </div>
           <div className="w-48">
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <Select
+              value={statusFilter}
+              onValueChange={(value) => {
+                setStatusFilter(value);
+                setPage(1);
+              }}
+            >
               <SelectTrigger>
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
@@ -602,11 +743,36 @@ export default function AdminBookingsPage() {
             </Select>
           </div>
         </CardContent>
+        <CardContent className="border-t px-4 py-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <span className="text-sm text-muted-foreground">
+            Total {totalBookings} bookings
+          </span>
+          <label className="flex items-center gap-2 text-sm text-muted-foreground">
+            Rows per page:
+            <select
+              className="rounded-md border bg-background px-2 py-1 text-sm text-foreground outline-none"
+              value={String(rowsperpage || paginatedBookings?.page_size || 10)}
+              onChange={(e) => {
+                setRowsPerPage(Number(e.target.value));
+                setPage(1);
+              }}
+            >
+              <option value="10">10</option>
+              <option value="20">20</option>
+              <option value="50">50</option>
+            </select>
+          </label>
+        </CardContent>
       </Card>
 
       {/* Bookings Table */}
       <Card>
         <CardContent className="p-0">
+          <div className="border-b px-4 py-3 text-sm text-muted-foreground">
+            {totalBookings > 0
+              ? `Showing ${currentRangeStart}-${currentRangeEnd} of ${totalBookings} bookings`
+              : "No bookings to show"}
+          </div>
           <Table>
             <TableHeader>
               <TableRow>
@@ -642,8 +808,8 @@ export default function AdminBookingsPage() {
                     </TableCell>
                   </TableRow>
                 ))
-              ) : bookings?.length > 0 ? (
-                bookings.map((b: Booking) => (
+              ) : bookingItems.length > 0 ? (
+                bookingItems.map((b: Booking) => (
                   <TableRow
                     key={b.id}
                     className="cursor-pointer hover:bg-muted/50"
@@ -771,6 +937,65 @@ export default function AdminBookingsPage() {
               )}
             </TableBody>
           </Table>
+          {totalPages > 1 && (
+            <div className="border-t px-4 py-3">
+              <Pagination>
+                <PaginationContent>
+                  <PaginationItem>
+                    <PaginationPrevious
+                      href="#"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        if (hasPreviousPage) {
+                          setPage(page - 1);
+                        }
+                      }}
+                      className={cn(
+                        !hasPreviousPage && "pointer-events-none opacity-50",
+                      )}
+                    />
+                  </PaginationItem>
+
+                  {getPageNumbers().map((pageNumber, index) =>
+                    pageNumber === "ellipsis" ? (
+                      <PaginationItem key={`ellipsis-${index}`}>
+                        <PaginationEllipsis />
+                      </PaginationItem>
+                    ) : (
+                      <PaginationItem key={pageNumber}>
+                        <PaginationLink
+                          href="#"
+                          isActive={page === pageNumber}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            setPage(pageNumber);
+                          }}
+                          className="cursor-pointer"
+                        >
+                          {pageNumber}
+                        </PaginationLink>
+                      </PaginationItem>
+                    ),
+                  )}
+
+                  <PaginationItem>
+                    <PaginationNext
+                      href="#"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        if (hasNextPage) {
+                          setPage(page + 1);
+                        }
+                      }}
+                      className={cn(
+                        !hasNextPage && "pointer-events-none opacity-50",
+                      )}
+                    />
+                  </PaginationItem>
+                </PaginationContent>
+              </Pagination>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -986,6 +1211,7 @@ export default function AdminBookingsPage() {
                                 handleMeasurementChange("coat", f, c, v)
                               }
                               title="COAT & SAFARI, W. COAT"
+                              fieldMeta={coatFieldMeta}
                             />
                           </TabsContent>
                           <TabsContent value="pant" className="mt-2">
@@ -998,6 +1224,7 @@ export default function AdminBookingsPage() {
                                 handleMeasurementChange("pant", f, c, v)
                               }
                               title="PANT"
+                              fieldMeta={pantFieldMeta}
                             />
                           </TabsContent>
                           <TabsContent value="shirt" className="mt-2">
@@ -1010,6 +1237,7 @@ export default function AdminBookingsPage() {
                                 handleMeasurementChange("shirt", f, c, v)
                               }
                               title="SHIRT"
+                              fieldMeta={shirtFieldMeta}
                             />
                           </TabsContent>
                         </Tabs>
@@ -1133,7 +1361,7 @@ export default function AdminBookingsPage() {
                   className="flex items-center gap-2"
                 >
                   <Mail className="w-4 h-4" />
-                  Email Address *
+                  Email Address
                 </Label>
                 <Input
                   id="create-email"
@@ -1159,7 +1387,7 @@ export default function AdminBookingsPage() {
                   className="flex items-center gap-2"
                 >
                   <Phone className="w-4 h-4" />
-                  Phone Number *
+                  Phone Number
                 </Label>
                 <Input
                   id="create-phone"
@@ -1183,7 +1411,7 @@ export default function AdminBookingsPage() {
                   className="flex items-center gap-2"
                 >
                   <MapPin className="w-4 h-4" />
-                  Address / Location *
+                  Address / Location
                 </Label>
                 <Input
                   id="create-location"
@@ -1200,6 +1428,10 @@ export default function AdminBookingsPage() {
                 )}
               </div>
             </div>
+            <p className="text-xs text-muted-foreground">
+              Full name is required. Add either an email address or phone
+              number. Location is optional.
+            </p>
 
             {/* Measurement Type */}
             <div className="space-y-3">
@@ -1375,6 +1607,7 @@ export default function AdminBookingsPage() {
                       handleCreateMeasurementChange("coat", f, c, v)
                     }
                     title="COAT & SAFARI, W. COAT"
+                    fieldMeta={coatFieldMeta}
                   />
                 </TabsContent>
                 <TabsContent value="pant" className="mt-2">
@@ -1385,6 +1618,7 @@ export default function AdminBookingsPage() {
                       handleCreateMeasurementChange("pant", f, c, v)
                     }
                     title="PANT"
+                    fieldMeta={pantFieldMeta}
                   />
                 </TabsContent>
                 <TabsContent value="shirt" className="mt-2">
@@ -1395,6 +1629,7 @@ export default function AdminBookingsPage() {
                       handleCreateMeasurementChange("shirt", f, c, v)
                     }
                     title="SHIRT"
+                    fieldMeta={shirtFieldMeta}
                   />
                 </TabsContent>
               </Tabs>

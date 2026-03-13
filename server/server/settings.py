@@ -10,10 +10,11 @@ pymysql.install_as_MySQLdb()
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = config("SECRET_KEY")
-
+FRONTEND_URL = config("FRONTEND_URL")
+BACKEND_URL = config("BACKEND_URL")
 DEBUG = False
 
-ALLOWED_HOSTS = ["alphasuits.com.np", "server.alphasuits.com.np"]
+ALLOWED_HOSTS = [FRONTEND_URL, BACKEND_URL]
 # ALLOWED_HOSTS = ["*"]
 
 INSTALLED_APPS = [
@@ -152,7 +153,6 @@ SIMPLE_JWT = {
     "JTI_CLAIM": "jti",
 }
 
-FRONTEND_URL = config("FRONTEND_URL")
 CORS_ALLOWED_ORIGINS = [FRONTEND_URL]
 SECURE_SSL_REDIRECT = True
 CSRF_COOKIE_SECURE = True

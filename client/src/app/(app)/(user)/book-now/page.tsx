@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
 import { toast } from "sonner";
 import { handleClick as fireConfetti } from "@/app/(app)/(user)/checkout/[transitionuid]/_components/animation";
 import {
@@ -36,39 +35,33 @@ import {
 } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { useCreateBookingMutation } from "@/lib/store/Service/api";
-
-const coatFields = ["L", "C", "W", "H", "S", "B", "SL", "N"];
-const pantFields = ["L", "W", "H", "T", "HIL", "K", "B"];
-const shirtFields = ["L", "C", "W", "H", "S", "SL", "N"];
-
-const bookingSchema = z.object({
-  name: z.string().min(2, "Name must be at least 2 characters"),
-  email: z.string().email("Please enter a valid email address"),
-  phone_number: z.string().min(10, "Please enter a valid phone number"),
-  location: z.string().min(5, "Please enter your address"),
-  measurement_type: z.enum(["in_store", "home_visit", "self"]),
-  preferred_date: z.date({ required_error: "Please select a date" }),
-  preferred_time: z.string().min(1, "Please select a time"),
-  customer_notes: z.string().optional(),
-  coat_measurements: z.record(z.record(z.string())).optional(),
-  pant_measurements: z.record(z.record(z.string())).optional(),
-  shirt_measurements: z.record(z.record(z.string())).optional(),
-});
-
-type BookingFormData = z.infer<typeof bookingSchema>;
+import {
+  bookingFormSchema,
+  coatFields,
+  coatFieldMeta,
+  pantFieldMeta,
+  pantFields,
+  shirtFieldMeta,
+  shirtFields,
+  type BookingFormData,
+  type MeasurementFieldMeta,
+} from "@/lib/booking-form";
 
 function SelfMeasurementGrid({
   fields,
   measurements,
   onChange,
   title,
+  fieldMeta,
 }: {
   fields: string[];
   measurements: Record<string, Record<string, string>>;
   onChange: (field: string, column: "A" | "B", value: string) => void;
   title: string;
+  fieldMeta?: Partial<Record<string, MeasurementFieldMeta>>;
 }) {
   return (
     <div className="border rounded-lg overflow-hidden">
@@ -80,31 +73,67 @@ function SelfMeasurementGrid({
         <div className="p-2 text-center text-xs font-medium border-r">A</div>
         <div className="p-2 text-center text-xs font-medium">B</div>
       </div>
-      {fields.map((field) => (
-        <div key={field} className="grid grid-cols-3 border-b last:border-b-0">
-          <div className="p-2 font-medium border-r bg-muted/30 flex items-center justify-center text-sm">
-            {field}
+      {fields.map((field) => {
+        const meta = fieldMeta?.[field];
+
+        return (
+          <div key={field} className="grid grid-cols-3 border-b last:border-b-0">
+            <div className="p-2 border-r bg-muted/30 flex items-center justify-center text-center leading-tight">
+              <p className="text-xs font-semibold">
+                {meta?.helper ? (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="cursor-help underline decoration-dotted underline-offset-2">
+                        {meta?.label || field}
+                        {meta?.label && (
+                          <span className="text-[10px] text-muted-foreground">
+                            {" "}
+                            ({field})
+                          </span>
+                        )}
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent
+                      side="top"
+                      className="max-w-xs text-[11px] leading-relaxed"
+                    >
+                      {meta.helper}
+                    </TooltipContent>
+                  </Tooltip>
+                ) : (
+                  <>
+                    {meta?.label || field}
+                  </>
+                )}
+                {!meta?.helper && meta?.label && (
+                  <span className="text-[10px] text-muted-foreground">
+                    {" "}
+                    ({field})
+                  </span>
+                )}
+              </p>
+            </div>
+            <div className="p-1 border-r">
+              <Input
+                type="text"
+                className="h-7 text-center text-sm"
+                value={measurements[field]?.A || ""}
+                onChange={(e) => onChange(field, "A", e.target.value)}
+                placeholder="-"
+              />
+            </div>
+            <div className="p-1">
+              <Input
+                type="text"
+                className="h-7 text-center text-sm"
+                value={measurements[field]?.B || ""}
+                onChange={(e) => onChange(field, "B", e.target.value)}
+                placeholder="-"
+              />
+            </div>
           </div>
-          <div className="p-1 border-r">
-            <Input
-              type="text"
-              className="h-7 text-center text-sm"
-              value={measurements[field]?.A || ""}
-              onChange={(e) => onChange(field, "A", e.target.value)}
-              placeholder="-"
-            />
-          </div>
-          <div className="p-1">
-            <Input
-              type="text"
-              className="h-7 text-center text-sm"
-              value={measurements[field]?.B || ""}
-              onChange={(e) => onChange(field, "B", e.target.value)}
-              placeholder="-"
-            />
-          </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
@@ -114,7 +143,7 @@ export default function BookNowPage() {
   const [createBooking, { isLoading }] = useCreateBookingMutation();
 
   const form = useForm<BookingFormData>({
-    resolver: zodResolver(bookingSchema),
+    resolver: zodResolver(bookingFormSchema),
     defaultValues: {
       name: "",
       email: "",
@@ -152,14 +181,21 @@ export default function BookNowPage() {
     try {
       const formattedData: any = {
         name: data.name,
-        email: data.email,
-        phone_number: data.phone_number,
-        location: data.location,
         measurement_type: data.measurement_type,
         preferred_date: format(data.preferred_date, "yyyy-MM-dd"),
         preferred_time: data.preferred_time,
         customer_notes: data.customer_notes || "",
       };
+
+      if (data.email) {
+        formattedData.email = data.email;
+      }
+      if (data.phone_number) {
+        formattedData.phone_number = data.phone_number;
+      }
+      if (data.location) {
+        formattedData.location = data.location;
+      }
 
       // Include measurements if self-measurement type
       if (data.measurement_type === "self") {
@@ -248,7 +284,7 @@ export default function BookNowPage() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 w-full mt-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 w-full mt-8 items-start">
           <Card className="bg-white flex flex-col justify-between dark:bg-neutral-900/50 rounded-xl border shadow-sm overflow-hidden">
             <div className="relative w-full aspect-video bg-gradient-to-br from-amber-900 via-amber-800 to-indigo-900">
               <div className="absolute inset-0 w-full h-full">
@@ -329,7 +365,7 @@ export default function BookNowPage() {
                   <div className="space-y-2">
                     <Label htmlFor="email" className="flex items-center gap-2">
                       <Mail className="w-4 h-4" />
-                      Email Address *
+                      Email Address
                     </Label>
                     <Input
                       id="email"
@@ -355,7 +391,7 @@ export default function BookNowPage() {
                       className="flex items-center gap-2"
                     >
                       <Phone className="w-4 h-4" />
-                      Phone Number *
+                      Phone Number
                     </Label>
                     <Input
                       id="phone_number"
@@ -378,7 +414,7 @@ export default function BookNowPage() {
                       className="flex items-center gap-2"
                     >
                       <MapPin className="w-4 h-4" />
-                      Address / Location *
+                      Address / Location
                     </Label>
                     <Input
                       id="location"
@@ -395,6 +431,10 @@ export default function BookNowPage() {
                     )}
                   </div>
                 </div>
+                <p className="text-xs text-muted-foreground">
+                  Full name is required. Add either an email address or phone
+                  number. Location is optional.
+                </p>
 
                 {/* Measurement Type */}
                 <div className="space-y-3">
@@ -461,7 +501,7 @@ export default function BookNowPage() {
 
                 {/* Self Measurement Section */}
                 {watchMeasurementType === "self" && (
-                  <div className="space-y-4 rounded-xl border-2 border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-900/10 p-4">
+                  <div className="space-y-4">
                     <div>
                       <h3 className="font-semibold text-sm flex items-center gap-2">
                         📐 Enter Your Measurements
@@ -493,6 +533,7 @@ export default function BookNowPage() {
                             handleMeasurementChange("coat", f, c, v)
                           }
                           title="COAT & SAFARI, W. COAT"
+                          fieldMeta={coatFieldMeta}
                         />
                       </TabsContent>
                       <TabsContent value="pant" className="mt-2">
@@ -503,6 +544,7 @@ export default function BookNowPage() {
                             handleMeasurementChange("pant", f, c, v)
                           }
                           title="PANT"
+                          fieldMeta={pantFieldMeta}
                         />
                       </TabsContent>
                       <TabsContent value="shirt" className="mt-2">
@@ -513,6 +555,7 @@ export default function BookNowPage() {
                             handleMeasurementChange("shirt", f, c, v)
                           }
                           title="SHIRT"
+                          fieldMeta={shirtFieldMeta}
                         />
                       </TabsContent>
                     </Tabs>

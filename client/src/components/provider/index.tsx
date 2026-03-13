@@ -10,6 +10,7 @@ import { store, AppStore } from "@/lib/store/store";
 import { CartProvider } from "@/lib/cart-context";
 import { SessionProvider } from "next-auth/react";
 import { SiteTracker } from "@/components/global/site-tracker";
+import { AuthSessionGuard } from "@/components/provider/auth-session-guard";
 
 export const Provider = ({ children, session, ...props }: ThemeProviderProps & { session?: any }) => {
   const storeRef = useRef<AppStore | null>(null);
@@ -33,6 +34,7 @@ export const Provider = ({ children, session, ...props }: ThemeProviderProps & {
       />
       <SessionProvider session={session} refetchOnWindowFocus={false}>
         <ReduxProvider store={storeRef.current}>
+          <AuthSessionGuard />
           <CartProvider>
             <SiteTracker />
             {children}

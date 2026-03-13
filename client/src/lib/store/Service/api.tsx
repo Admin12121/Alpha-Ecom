@@ -1,4 +1,15 @@
+import type {
+  BaseQueryFn,
+  FetchArgs,
+  FetchBaseQueryError,
+} from "@reduxjs/toolkit/query";
 import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
+import {
+  emitUnauthorizedEvent,
+  getAuthErrorCode,
+  getAuthErrorMessage,
+  hasAuthorizationHeader,
+} from "@/lib/auth-logout";
 
 const createHeaders = (
   token?: string,
@@ -30,9 +41,40 @@ const buildQueryParams = (
 
 export const userAuthapi = createApi({
   reducerPath: "userAuthapi",
-  baseQuery: fetchBaseQuery({
-    baseUrl: `${process.env.NEXT_PUBLIC_API_URL}`,
-  }),
+  baseQuery: (() => {
+    const rawBaseQuery = fetchBaseQuery({
+      baseUrl: `${process.env.NEXT_PUBLIC_API_URL}`,
+    });
+
+    const baseQueryWithUnauthorizedLogout: BaseQueryFn<
+      string | FetchArgs,
+      unknown,
+      FetchBaseQueryError
+    > = async (args, api, extraOptions) => {
+      const result = await rawBaseQuery(args, api, extraOptions);
+      const headers = typeof args === "string" ? undefined : args.headers;
+
+      if (
+        result.error &&
+        typeof result.error.status === "number" &&
+        result.error.status === 401 &&
+        hasAuthorizationHeader(headers)
+      ) {
+        const code = getAuthErrorCode(result.error.data);
+
+        emitUnauthorizedEvent({
+          code,
+          message: getAuthErrorMessage(result.error.data),
+          reason: code === "token_not_valid" ? "expired" : "unauthorized",
+          status: result.error.status,
+        });
+      }
+
+      return result;
+    };
+
+    return baseQueryWithUnauthorizedLogout;
+  })(),
   refetchOnFocus: true,
   refetchOnReconnect: true,
   tagTypes: [
@@ -1074,8 +1116,17 @@ export const userAuthapi = createApi({
         start_date,
         end_date,
         page,
+        rowsperpage,
       }) => ({
-        url: `api/booking/bookings/${buildQueryParams({ status, measurement_type, search, start_date, end_date, page })}`,
+        url: `api/booking/bookings/${buildQueryParams({
+          status,
+          measurement_type,
+          search,
+          start_date,
+          end_date,
+          page,
+          page_size: rowsperpage,
+        })}`,
         method: "GET",
         headers: createHeaders(token),
       }),

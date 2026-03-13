@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { useAuthUser } from "@/hooks/use-auth-user";
+import { maybeEmitUnauthorizedFromResponse } from "@/lib/auth-logout";
 
 const TRACKING_KEY = "nas_site_view_logged";
 
@@ -57,11 +58,13 @@ export function SiteTracker() {
                     headers["Authorization"] = `Bearer ${accessToken}`;
                 }
 
-                await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/accounts/site-view-logs/`, {
+                const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/accounts/site-view-logs/`, {
                     method: "POST",
                     headers: headers,
                     body: JSON.stringify(payload)
                 });
+
+                await maybeEmitUnauthorizedFromResponse(response, headers);
 
             } catch (error) {
                 console.error("Site tracking failed", error);

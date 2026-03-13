@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { maybeEmitUnauthorizedFromResponse } from "@/lib/auth-logout";
 
 type FetchConfig = {
   url: string;
@@ -33,6 +34,8 @@ function useApi<T>(): UseApiResponse<T> {
         },
         body: config.data ? JSON.stringify(config.data) : undefined,
       });
+
+      await maybeEmitUnauthorizedFromResponse(response, config.headers);
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));

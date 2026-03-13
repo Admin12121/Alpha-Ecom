@@ -8,6 +8,7 @@ from django.template.loader import render_to_string
 from django.utils import timezone
 from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
+from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 
 logger = logging.getLogger(__name__)
@@ -35,6 +36,23 @@ class IsAdminOrCreateOnly(permissions.BasePermission):
         if request.method == "POST" and view.action == "create":
             return True
         return request.user and request.user.is_staff
+
+
+class StandardResultsSetPagination(PageNumberPagination):
+    page_size = 10
+    page_size_query_param = "page_size"
+    max_page_size = 100
+
+    def get_paginated_response(self, data):
+        return Response(
+            {
+                "count": self.page.paginator.count,
+                "page_size": self.get_page_size(self.request),
+                "next": self.get_next_link(),
+                "previous": self.get_previous_link(),
+                "results": data,
+            }
+        )
 
 
 def send_booking_confirmation_email(booking):
@@ -158,6 +176,7 @@ class BookingViewSet(viewsets.ModelViewSet):
 
     queryset = Booking.objects.all()
     permission_classes = [IsAdminOrCreateOnly]
+    pagination_class = StandardResultsSetPagination
 
     def get_serializer_class(self):
         if self.action == "create":
